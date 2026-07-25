@@ -33,13 +33,13 @@ A aplicação estará disponível em [http://localhost:3000](http://localhost:30
 
 ## Scripts disponíveis
 
-| Script           | Descrição                                    |
-| ---------------- | --------------------------------------------- |
-| `npm run dev`    | Inicia o servidor de desenvolvimento          |
-| `npm run build`  | Gera a build de produção                      |
-| `npm run start`  | Inicia a aplicação a partir da build gerada   |
-| `npm run lint`   | Executa a verificação de lint (ESLint)        |
-| `npm run format` | Formata o código do projeto (Prettier)        |
+| Script           | Descrição                                   |
+| ---------------- | ------------------------------------------- |
+| `npm run dev`    | Inicia o servidor de desenvolvimento        |
+| `npm run build`  | Gera a build de produção                    |
+| `npm run start`  | Inicia a aplicação a partir da build gerada |
+| `npm run lint`   | Executa a verificação de lint (ESLint)      |
+| `npm run format` | Formata o código do projeto (Prettier)      |
 
 ## Estrutura resumida de pastas
 
