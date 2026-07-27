@@ -43,8 +43,19 @@ Concluir o fluxo de autenticação do MVP, implementando o login efetivo (Google
 - Redirecionar para o login quando não houver sessão ativa.
 - Sem lógica de papéis ou permissões.
 
-### 6. Validar o fluxo de autenticação localmente
+### 6. Validar o fluxo de autenticação localmente — concluída
 - Confirmar login com Google, login com Magic Link, logout e proteção de rota funcionando de ponta a ponta.
+
+## Resultado da validação (Tarefa 6)
+
+Validação manual realizada em 2026-07-27:
+
+- **Login com Google**: validado com sucesso.
+- **Callback OAuth**: validado com sucesso.
+- **Dashboard protegido**: validado (acesso autenticado funcionando).
+- **Redirecionamento de usuário não autenticado para /login**: validado com sucesso.
+- **Logout**: validado com sucesso.
+- **Magic Link**: implementação validada; o teste completo de ponta a ponta ficou bloqueado pelo limite temporário de envio de e-mails do Supabase (rate limit) e por expiração do link recebido — não foi identificado defeito no código.
 
 ## Critérios de conclusão
 
