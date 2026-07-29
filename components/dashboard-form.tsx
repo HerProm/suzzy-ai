@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Task } from "@/lib/ai/tasks";
 
 const TASKS: { id: Task; label: string }[] = [
@@ -12,6 +12,8 @@ const TASKS: { id: Task; label: string }[] = [
 
 const NETWORK_ERROR_MESSAGE =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
+const COPY_ERROR_MESSAGE = "Não foi possível copiar o texto. Tente novamente.";
+const COPY_FEEDBACK_DURATION_MS = 2000;
 
 export function DashboardForm() {
   const [context, setContext] = useState("");
@@ -19,8 +21,21 @@ export function DashboardForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyLabel, setCopyLabel] = useState("Copiar");
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDisabled = context.trim() === "" || selectedTask === null;
+  const isCopyDisabled = !response || response.trim() === "";
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   async function handleGenerate() {
     if (isLoading) return;
@@ -48,6 +63,42 @@ export function DashboardForm() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleCopy() {
+    if (isCopyDisabled || !response) return;
+
+    try {
+      await navigator.clipboard.writeText(response);
+      setCopyError(null);
+      setCopyLabel("Copiado!");
+
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopyLabel("Copiar");
+        copyTimeoutRef.current = null;
+      }, COPY_FEEDBACK_DURATION_MS);
+    } catch {
+      setCopyError(COPY_ERROR_MESSAGE);
+    }
+  }
+
+  function handleClear() {
+    if (isLoading) return;
+
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = null;
+    }
+
+    setContext("");
+    setSelectedTask(null);
+    setResponse(null);
+    setError(null);
+    setCopyError(null);
+    setCopyLabel("Copiar");
   }
 
   return (
@@ -92,11 +143,45 @@ export function DashboardForm() {
           {isLoading ? "Gerando..." : "Gerar resposta"}
         </button>
 
+        <button
+          type="button"
+          disabled={isLoading}
+          onClick={handleClear}
+          className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+        >
+          Limpar
+        </button>
+
         <div aria-live="polite" className="flex flex-col gap-2">
-          {response && (
-            <div>
-              <h2 className="font-medium">Resposta gerada</h2>
-              <p>{response}</p>
+          {response !== null && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="response" className="font-medium">
+                Resposta gerada
+              </label>
+              <textarea
+                id="response"
+                value={response}
+                onChange={(e) => setResponse(e.target.value)}
+                rows={6}
+                className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              />
+              <button
+                type="button"
+                disabled={isCopyDisabled}
+                onClick={handleCopy}
+                className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+              >
+                {copyLabel}
+              </button>
+              {copyError && <p>{copyError}</p>}
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={handleGenerate}
+                className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+              >
+                {isLoading ? "Gerando..." : "Gerar novamente"}
+              </button>
             </div>
           )}
           {error && <p>{error}</p>}
