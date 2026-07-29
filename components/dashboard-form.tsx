@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Task } from "@/lib/ai/tasks";
+import { PROMPT_TEMPLATES } from "@/lib/prompt-templates";
 
 const TASKS: { id: Task; label: string }[] = [
   { id: "responder_lead", label: "Responder um lead" },
@@ -43,6 +44,7 @@ export function DashboardForm() {
   const [copyLabel, setCopyLabel] = useState("Copiar");
   const [copyError, setCopyError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDisabled = context.trim() === "" || selectedTask === null;
@@ -130,6 +132,7 @@ export function DashboardForm() {
     setError(null);
     setCopyError(null);
     setCopyLabel("Copiar");
+    setSelectedTemplateId("");
   }
 
   function handleRestore(item: HistoryItem) {
@@ -144,10 +147,42 @@ export function DashboardForm() {
     setError(null);
     setCopyError(null);
     setCopyLabel("Copiar");
+    setSelectedTemplateId("");
+  }
+
+  function handleTemplateChange(templateId: string) {
+    setSelectedTemplateId(templateId);
+
+    if (templateId === "") return;
+
+    const template = PROMPT_TEMPLATES.find((item) => item.id === templateId);
+
+    if (template) {
+      setContext(template.context);
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <label htmlFor="template" className="font-medium">
+          Template
+        </label>
+        <select
+          id="template"
+          value={selectedTemplateId}
+          onChange={(e) => handleTemplateChange(e.target.value)}
+          className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <option value="">Selecione um template</option>
+          {PROMPT_TEMPLATES.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label htmlFor="context" className="font-medium">
           Contexto
