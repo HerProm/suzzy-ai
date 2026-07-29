@@ -10,10 +10,29 @@ const TASKS: { id: Task; label: string }[] = [
   { id: "sugerir_proximos_passos", label: "Sugerir próximos passos" },
 ];
 
+type HistoryItem = {
+  id: string;
+  context: string;
+  task: Task;
+  response: string;
+  createdAt: Date;
+};
+
 const NETWORK_ERROR_MESSAGE =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
 const COPY_ERROR_MESSAGE = "Não foi possível copiar o texto. Tente novamente.";
 const COPY_FEEDBACK_DURATION_MS = 2000;
+const HISTORY_PREVIEW_LENGTH = 80;
+
+function getTaskLabel(task: Task) {
+  return TASKS.find((item) => item.id === task)?.label ?? task;
+}
+
+function previewText(text: string) {
+  return text.length > HISTORY_PREVIEW_LENGTH
+    ? `${text.slice(0, HISTORY_PREVIEW_LENGTH)}...`
+    : text;
+}
 
 export function DashboardForm() {
   const [context, setContext] = useState("");
@@ -23,6 +42,7 @@ export function DashboardForm() {
   const [error, setError] = useState<string | null>(null);
   const [copyLabel, setCopyLabel] = useState("Copiar");
   const [copyError, setCopyError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDisabled = context.trim() === "" || selectedTask === null;
@@ -55,6 +75,17 @@ export function DashboardForm() {
 
       if (res.ok) {
         setResponse(data.response);
+
+        if (selectedTask) {
+          const newItem: HistoryItem = {
+            id: crypto.randomUUID(),
+            context,
+            task: selectedTask,
+            response: data.response,
+            createdAt: new Date(),
+          };
+          setHistory((currentHistory) => [newItem, ...currentHistory]);
+        }
       } else {
         setError(data.error ?? NETWORK_ERROR_MESSAGE);
       }
@@ -96,6 +127,20 @@ export function DashboardForm() {
     setContext("");
     setSelectedTask(null);
     setResponse(null);
+    setError(null);
+    setCopyError(null);
+    setCopyLabel("Copiar");
+  }
+
+  function handleRestore(item: HistoryItem) {
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = null;
+    }
+
+    setContext(item.context);
+    setSelectedTask(item.task);
+    setResponse(item.response);
     setError(null);
     setCopyError(null);
     setCopyLabel("Copiar");
@@ -187,6 +232,29 @@ export function DashboardForm() {
           {error && <p>{error}</p>}
         </div>
       </div>
+
+      {history.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h2 className="font-medium">Histórico recente</h2>
+          <ul className="flex flex-col gap-2">
+            {history.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => handleRestore(item)}
+                  aria-label={`Restaurar geração de ${getTaskLabel(item.task)}`}
+                  className="w-full rounded border px-4 py-2 text-left hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  <p className="font-medium">{getTaskLabel(item.task)}</p>
+                  <p>{item.createdAt.toLocaleString("pt-BR")}</p>
+                  <p>{previewText(item.context)}</p>
+                  <p>{previewText(item.response)}</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
