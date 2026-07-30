@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { Task } from "@/lib/ai/tasks";
 import { PROMPT_TEMPLATES } from "@/lib/prompt-templates";
+import { usePromptTemplates } from "@/hooks/use-prompt-templates";
+import {
+  useGenerationHistory,
+  type HistoryItem,
+} from "@/hooks/use-generation-history";
+import { useCopyResponse } from "@/hooks/use-copy-response";
 
 const TASKS: { id: Task; label: string }[] = [
   { id: "responder_lead", label: "Responder um lead" },
@@ -11,18 +17,8 @@ const TASKS: { id: Task; label: string }[] = [
   { id: "sugerir_proximos_passos", label: "Sugerir próximos passos" },
 ];
 
-type HistoryItem = {
-  id: string;
-  context: string;
-  task: Task;
-  response: string;
-  createdAt: Date;
-};
-
 const NETWORK_ERROR_MESSAGE =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
-const COPY_ERROR_MESSAGE = "Não foi possível copiar o texto. Tente novamente.";
-const COPY_FEEDBACK_DURATION_MS = 2000;
 const HISTORY_PREVIEW_LENGTH = 80;
 
 function getTaskLabel(task: Task) {
@@ -41,23 +37,24 @@ export function DashboardForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copyLabel, setCopyLabel] = useState("Copiar");
-  const [copyError, setCopyError] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { copyLabel, copyError, handleCopy, resetCopyFeedback } =
+    useCopyResponse();
+
+  const { selectedTemplateId, handleTemplateChange, clearSelectedTemplate } =
+    usePromptTemplates(setContext);
+
+  const { history, addHistoryItem, restoreHistoryItem } = useGenerationHistory(
+    {
+      setContext,
+      setSelectedTask,
+      setResponse,
+      clearSelectedTemplate,
+    },
+  );
 
   const isDisabled = context.trim() === "" || selectedTask === null;
   const isCopyDisabled = !response || response.trim() === "";
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) {
-        clearTimeout(copyTimeoutRef.current);
-        copyTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   async function handleGenerate() {
     if (isLoading) return;
@@ -79,14 +76,11 @@ export function DashboardForm() {
         setResponse(data.response);
 
         if (selectedTask) {
-          const newItem: HistoryItem = {
-            id: crypto.randomUUID(),
+          addHistoryItem({
             context,
             task: selectedTask,
             response: data.response,
-            createdAt: new Date(),
-          };
-          setHistory((currentHistory) => [newItem, ...currentHistory]);
+          });
         }
       } else {
         setError(data.error ?? NETWORK_ERROR_MESSAGE);
@@ -98,68 +92,23 @@ export function DashboardForm() {
     }
   }
 
-  async function handleCopy() {
-    if (isCopyDisabled || !response) return;
-
-    try {
-      await navigator.clipboard.writeText(response);
-      setCopyError(null);
-      setCopyLabel("Copiado!");
-
-      if (copyTimeoutRef.current) {
-        clearTimeout(copyTimeoutRef.current);
-      }
-      copyTimeoutRef.current = setTimeout(() => {
-        setCopyLabel("Copiar");
-        copyTimeoutRef.current = null;
-      }, COPY_FEEDBACK_DURATION_MS);
-    } catch {
-      setCopyError(COPY_ERROR_MESSAGE);
-    }
-  }
-
   function handleClear() {
     if (isLoading) return;
 
-    if (copyTimeoutRef.current) {
-      clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = null;
-    }
+    resetCopyFeedback();
 
     setContext("");
     setSelectedTask(null);
     setResponse(null);
     setError(null);
-    setCopyError(null);
-    setCopyLabel("Copiar");
-    setSelectedTemplateId("");
+    clearSelectedTemplate();
   }
 
   function handleRestore(item: HistoryItem) {
-    if (copyTimeoutRef.current) {
-      clearTimeout(copyTimeoutRef.current);
-      copyTimeoutRef.current = null;
-    }
-
-    setContext(item.context);
-    setSelectedTask(item.task);
-    setResponse(item.response);
+    resetCopyFeedback();
     setError(null);
-    setCopyError(null);
-    setCopyLabel("Copiar");
-    setSelectedTemplateId("");
-  }
 
-  function handleTemplateChange(templateId: string) {
-    setSelectedTemplateId(templateId);
-
-    if (templateId === "") return;
-
-    const template = PROMPT_TEMPLATES.find((item) => item.id === templateId);
-
-    if (template) {
-      setContext(template.context);
-    }
+    restoreHistoryItem(item);
   }
 
   return (
@@ -248,7 +197,7 @@ export function DashboardForm() {
               <button
                 type="button"
                 disabled={isCopyDisabled}
-                onClick={handleCopy}
+                onClick={() => handleCopy(response ?? "")}
                 className="rounded border px-4 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
               >
                 {copyLabel}
