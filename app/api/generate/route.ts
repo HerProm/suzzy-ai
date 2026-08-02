@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 import { ALLOWED_TASKS, buildAiInput, type Task } from "@/lib/ai/tasks";
+import { REAL_ESTATE_SCENARIOS } from "@/lib/real-estate-scenarios";
 
 const MAX_CONTEXT_LENGTH = 5000;
 const GENERATION_ERROR =
@@ -35,9 +36,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const { context, task } = (body ?? {}) as {
+  const { context, task, scenarioId } = (body ?? {}) as {
     context?: unknown;
     task?: unknown;
+    scenarioId?: unknown;
   };
 
   if (
@@ -56,9 +58,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: GENERATION_ERROR }, { status: 500 });
   }
 
+  const scenario =
+    typeof scenarioId === "string"
+      ? REAL_ESTATE_SCENARIOS.find((item) => item.id === scenarioId)
+      : undefined;
+
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const { instructions, input } = buildAiInput(task, context);
+    const { instructions, input } = buildAiInput(task, context, scenario);
 
     const response = await client.responses.create({
       model: "gpt-5-mini",
