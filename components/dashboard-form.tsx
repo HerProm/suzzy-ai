@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Task } from "@/lib/ai/tasks";
 import { PROMPT_TEMPLATES } from "@/lib/prompt-templates";
 import { SCENARIOS_BY_CATEGORY } from "@/lib/real-estate-scenarios";
+import { OBJECTIONS_BY_CATEGORY } from "@/lib/real-estate-objections";
 import { usePromptTemplates } from "@/hooks/use-prompt-templates";
 import {
   useGenerationHistory,
@@ -47,6 +48,9 @@ export function DashboardForm() {
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
     null,
   );
+  const [selectedObjectionId, setSelectedObjectionId] = useState<
+    string | null
+  >(null);
 
   const { copyLabel, copyError, handleCopy, resetCopyFeedback } =
     useCopyResponse();
@@ -93,6 +97,7 @@ export function DashboardForm() {
           context,
           task: selectedTask,
           scenarioId: selectedScenarioId,
+          objectionId: selectedObjectionId,
         }),
       });
 
@@ -206,6 +211,44 @@ export function DashboardForm() {
                     <span className="font-medium">{cenario.nome}</span>
                     <span className="text-xs text-slate-500">
                       {cenario.descricao}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-4">
+        <legend className={FIELD_LABEL_CLASS}>Objeção</legend>
+        {OBJECTIONS_BY_CATEGORY.map((grupo) => (
+          <fieldset key={grupo.categoria} className="flex flex-col gap-2">
+            <legend className="text-xs font-medium text-slate-500">
+              {grupo.categoria}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {grupo.objecoes.map((objecao) => (
+                <label
+                  key={objecao.id}
+                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
+                    selectedObjectionId === objecao.id
+                      ? "border-slate-900 bg-slate-50 text-slate-900"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="objection"
+                    value={objecao.id}
+                    checked={selectedObjectionId === objecao.id}
+                    onChange={() => setSelectedObjectionId(objecao.id)}
+                    className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">{objecao.nome}</span>
+                    <span className="text-xs text-slate-500">
+                      {objecao.descricao}
                     </span>
                   </span>
                 </label>
