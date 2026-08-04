@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { ALLOWED_TASKS, buildAiInput, type Task } from "@/lib/ai/tasks";
 import { REAL_ESTATE_SCENARIOS } from "@/lib/real-estate-scenarios";
 import { REAL_ESTATE_OBJECTIONS } from "@/lib/real-estate-objections";
+import {
+  STRATEGIES_BY_CATEGORY,
+  type StrategyCategory,
+} from "@/lib/real-estate-strategies";
 
 const MAX_CONTEXT_LENGTH = 5000;
 const GENERATION_ERROR =
@@ -15,6 +19,11 @@ function isValidTask(value: unknown): value is Task {
     (ALLOWED_TASKS as readonly string[]).includes(value)
   );
 }
+
+const TASK_STRATEGY_CATEGORY: Partial<Record<Task, StrategyCategory>> = {
+  responder_lead: "Primeiro Contato",
+  criar_follow_up: "Follow-up",
+};
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -70,6 +79,18 @@ export async function POST(request: Request) {
       ? REAL_ESTATE_OBJECTIONS.find((item) => item.id === objectionId)
       : undefined;
 
+  const relevantStrategyCategory: StrategyCategory | undefined = objection
+    ? "Negociação"
+    : scenario?.categoria === "Negociação"
+      ? "Negociação"
+      : TASK_STRATEGY_CATEGORY[task];
+
+  const strategies = relevantStrategyCategory
+    ? STRATEGIES_BY_CATEGORY.find(
+        (group) => group.categoria === relevantStrategyCategory,
+      )?.estrategias
+    : undefined;
+
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const { instructions, input } = buildAiInput(
@@ -77,6 +98,7 @@ export async function POST(request: Request) {
       context,
       scenario,
       objection,
+      strategies,
     );
 
     const response = await client.responses.create({
