@@ -126,11 +126,18 @@ const PLAN_FEATURES = [
   "Atualizações futuras",
 ];
 
-const FAQS = [
+type Faq = {
+  question: string;
+  answer: string;
+  link?: { href: string; label: string };
+};
+
+const FAQS: Faq[] = [
   {
     question: "A SUZZY AI substitui o corretor?",
     answer:
       "Não.\nA SUZZY AI foi criada para apoiar o corretor durante o atendimento e as negociações.\nA decisão final sempre é do profissional.",
+    link: { href: "/ia", label: "Saiba mais sobre como usamos IA" },
   },
   {
     question: "Preciso instalar algum programa?",
@@ -146,8 +153,8 @@ const FAQS = [
   },
   {
     question: "Meus dados ficam protegidos?",
-    answer:
-      "Utilizamos autenticação segura para proteger o acesso à plataforma. Nossa Política de Privacidade completa será disponibilizada antes do lançamento oficial.",
+    answer: "Utilizamos autenticação segura para proteger o acesso à plataforma.",
+    link: { href: "/privacidade", label: "Leia nossa Política de Privacidade" },
   },
 ];
 
@@ -554,6 +561,14 @@ export default function Home() {
                 <p className="whitespace-pre-line text-sm text-slate-600">
                   {faq.answer}
                 </p>
+                {faq.link && (
+                  <Link
+                    href={faq.link.href}
+                    className="text-sm font-medium text-slate-900 underline underline-offset-2 transition-colors hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    {faq.link.label}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -600,18 +615,30 @@ export default function Home() {
             >
               Entrar
             </Link>
-            <a
-              href="#"
+            <Link
+              href="/termos"
               className="transition-colors hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Termos de Uso
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/privacidade"
               className="transition-colors hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Política de Privacidade
-            </a>
+            </Link>
+            <Link
+              href="/ia"
+              className="transition-colors hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Transparência sobre IA
+            </Link>
+            <Link
+              href="/cookies"
+              className="transition-colors hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Cookies
+            </Link>
           </nav>
 
           <p className="text-xs text-slate-400">
