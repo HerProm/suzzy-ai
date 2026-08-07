@@ -40,7 +40,7 @@ export default function LoginPage() {
 
     setLoading(false);
     setMessage(
-      error ? error.message : "Verifique seu e-mail para acessar o link de login.",
+      error ? error.message : "Verifique seu e-mail para acessar o link de acesso.",
     );
   }
 
@@ -52,7 +52,8 @@ export default function LoginPage() {
             SUZZY AI
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Entre para acessar seu dashboard.
+            Entre na sua conta ou comece agora seu teste gratuito de 15
+            dias.
           </p>
         </div>
 
@@ -64,7 +65,7 @@ export default function LoginPage() {
               disabled={loading}
               className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Entrar com Google
+              Continuar com Google
             </button>
 
             <div className="flex items-center gap-3">
@@ -87,9 +88,14 @@ export default function LoginPage() {
                 disabled={loading || !email}
                 className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Entrar com Magic Link
+                Continuar com Magic Link
               </button>
             </div>
+
+            <p className="text-center text-xs text-slate-400">
+              Novo por aqui? Sua conta é criada automaticamente no primeiro
+              acesso.
+            </p>
           </div>
 
           {message && <p className="mt-4 text-sm text-slate-600">{message}</p>}
