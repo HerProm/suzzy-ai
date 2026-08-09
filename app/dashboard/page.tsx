@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardForm } from "@/components/dashboard-form";
+import { SuzzySupportChat } from "@/components/suzzy-support-chat";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -40,6 +41,8 @@ export default async function DashboardPage() {
           </div>
         </div>
       </main>
+
+      <SuzzySupportChat />
     </div>
   );
 }

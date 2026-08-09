@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SuzzyAssistChat } from "@/components/suzzy-assist-chat";
 
 const PROBLEMS = [
   {
@@ -646,6 +647,8 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      <SuzzyAssistChat />
     </div>
   );
 }
