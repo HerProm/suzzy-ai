@@ -77,6 +77,48 @@ export default function CookiesPolicyPage() {
       </section>
 
       <section className="flex flex-col gap-3">
+        <h2 className={LEGAL_H2}>Chats Suzzy Assist e Suzzy Support</h2>
+        <p className={LEGAL_P}>
+          A plataforma conta com dois assistentes de conversa (Suzzy
+          Assist, público, na página inicial; e Suzzy Support, autenticado,
+          no Dashboard — descritos em detalhe na{" "}
+          <Link href="/privacidade" className={LEGAL_LINK}>
+            Política de Privacidade
+          </Link>
+          ). Com base na auditoria técnica do projeto:
+        </p>
+        <ul className={LEGAL_UL}>
+          <li>nenhum dos dois chats cria cookie próprio;</li>
+          <li>
+            nenhum dos dois chats usa{" "}
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.9em]">
+              localStorage
+            </code>{" "}
+            para guardar a conversa — cada conversa existe apenas na
+            memória da página enquanto ela estiver aberta, e é perdida ao
+            fechá-la ou recarregar;
+          </li>
+          <li>
+            o controle de limite de uso desses chats (rate limiting, usado
+            para prevenir abuso e conter custos) é feito inteiramente no
+            servidor e não depende de cookie nem de armazenamento local;
+          </li>
+          <li>
+            o acesso à Suzzy Support continua dependendo dos mesmos
+            mecanismos de sessão/autenticação já descritos acima — nenhum
+            cookie ou mecanismo adicional foi introduzido para viabilizar
+            esse chat.
+          </li>
+        </ul>
+        <p className={LEGAL_P}>
+          Essa conclusão descreve o estado técnico atual do projeto,
+          verificado por auditoria de código — não é, por si só, um parecer
+          jurídico definitivo sobre a ausência de necessidade de banner de
+          consentimento (ver seção abaixo).
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-3">
         <h2 className={LEGAL_H2}>Analytics, publicidade e rastreamento</h2>
         <p className={LEGAL_P}>Na versão atual da plataforma:</p>
         <ul className={LEGAL_UL}>
@@ -85,9 +127,9 @@ export default function CookiesPolicyPage() {
           <li>não utilizamos mecanismos de rastreamento (tracking) comercial.</li>
         </ul>
         <p className={LEGAL_P}>
-          Esta seção descreve a versão atual da plataforma e poderá ser
-          atualizada caso novas tecnologias desse tipo sejam adicionadas no
-          futuro.
+          Esta seção descreve a versão atual da plataforma — incluindo os
+          chats Suzzy Assist e Suzzy Support — e poderá ser atualizada caso
+          novas tecnologias desse tipo sejam adicionadas no futuro.
         </p>
       </section>
 

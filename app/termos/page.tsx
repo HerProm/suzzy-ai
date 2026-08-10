@@ -39,14 +39,42 @@ export default function TermsOfUsePage() {
           não substitui o corretor, sua atuação profissional, seu
           julgamento ou sua responsabilidade perante clientes e terceiros.
         </p>
+        <p className={LEGAL_P}>
+          A plataforma também disponibiliza dois assistentes de conversa
+          baseados em IA, complementares à geração principal:
+        </p>
+        <ul className={LEGAL_UL}>
+          <li>
+            <strong>Suzzy Assist</strong> — chat público, disponível na
+            página inicial, que responde dúvidas informativas sobre a SUZZY
+            AI (como funciona, planos, uso da plataforma) para quem ainda
+            não é usuário. A Suzzy Assist não executa ações, navegação ou
+            contato futuro em nome do visitante — ela apenas informa.
+          </li>
+          <li>
+            <strong>Suzzy Support</strong> — chat disponível no Dashboard
+            para usuários autenticados, que orienta sobre como usar a
+            plataforma (por exemplo, como preencher o contexto, escolher
+            cenários e objeções). A Suzzy Support orienta o usuário; quem
+            executa é o próprio usuário — ela não realiza automaticamente
+            ações no Dashboard em nome dele.
+          </li>
+        </ul>
+        <p className={LEGAL_P}>
+          Assim como a geração principal, nenhum dos dois assistentes de
+          conversa substitui o julgamento profissional do corretor, e ambos
+          podem cometer erros.
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">
         <h2 className={LEGAL_H2}>Inteligência Artificial e limitações</h2>
         <p className={LEGAL_P}>
-          A SUZZY AI utiliza inteligência artificial para gerar parte
-          relevante do conteúdo oferecido ao usuário. É essencial que o
-          usuário compreenda que:
+          Esta seção se aplica à geração principal da plataforma e também
+          aos dois assistentes de conversa descritos acima (Suzzy Assist e
+          Suzzy Support). A SUZZY AI utiliza inteligência artificial para
+          gerar parte relevante do conteúdo oferecido ao usuário. É
+          essencial que o usuário compreenda que:
         </p>
         <ul className={LEGAL_UL}>
           <li>
@@ -234,6 +262,16 @@ export default function TermsOfUsePage() {
           adicionadas, alteradas ou descontinuadas ao longo do tempo. Não
           prometemos disponibilidade ininterrupta do serviço nem um acordo
           de nível de serviço (SLA) nesta versão dos Termos.
+        </p>
+        <p className={LEGAL_P}>
+          Para proteger a segurança, a estabilidade e o funcionamento
+          técnico da plataforma — incluindo os assistentes de conversa
+          Suzzy Assist e Suzzy Support — a SUZZY AI pode aplicar limites
+          técnicos de uso (rate limiting), como um número máximo de
+          mensagens em um curto período de tempo ou ao longo de um dia.
+          Esses limites existem para prevenir abuso e uso excessivo e para
+          controlar a operação técnica do serviço, e não representam uma
+          promessa de disponibilidade ilimitada.
         </p>
       </section>
 

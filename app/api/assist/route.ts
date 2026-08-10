@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { createOpenAiClient } from "@/lib/ai/client";
 import { SUZZY_ASSIST_KNOWLEDGE } from "@/lib/agents/assist-knowledge";
+import {
+  getAssistRateLimiters,
+  getAssistRateLimitIdentifier,
+  checkRateLimit,
+} from "@/lib/rate-limit";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_HISTORY_MESSAGES = 6;
+const RATE_LIMIT_MESSAGE =
+  "Muitas mensagens em pouco tempo. Aguarde um momento e tente novamente.";
+const SERVICE_UNAVAILABLE_MESSAGE =
+  "O assistente está temporariamente indisponível. Tente novamente em instantes.";
 // Mesma causa raiz corrigida em /api/support: respostas da própria IA
 // (max_output_tokens: 500) podem ultrapassar 1000 caracteres em perguntas
 // comerciais normais — confirmado ao vivo com uma resposta real de 2142
@@ -121,11 +130,64 @@ function buildAssistInstructions(): string {
 }
 
 export async function POST(request: Request) {
-  // Pendência (ver docs/SPRINT-16.md): rate limiting real ainda não
-  // implementado — não existe infraestrutura adequada no projeto para isso
-  // hoje. Quando essa infraestrutura existir, a verificação deve acontecer
-  // aqui, antes de qualquer leitura do corpo da requisição ou chamada à
-  // OpenAI, sem exigir mudança no restante desta rota.
+  // Rate limiting acontece antes de qualquer leitura do corpo da requisição
+  // — todo request que chega à rota consome uma unidade do limite, válido ou
+  // não. Mesma ordem (verificação primeiro, corpo depois) já usada para a
+  // checagem de autenticação em /api/support; aqui evita gastar trabalho de
+  // parse/validação em requisições de um identificador que já deveria ser
+  // bloqueado, e mantém a decisão de bloqueio simples: independe do
+  // conteúdo enviado.
+  const assistRateLimiters = getAssistRateLimiters();
+
+  // Fail-closed (decisão registrada em lib/rate-limit/index.ts e
+  // docs/SPRINT-17.md): se os limitadores não puderem ser criados
+  // (credenciais do Upstash ausentes/inválidas), a rota pública não segue
+  // para a OpenAI — retorna indisponibilidade em vez de abrir uma via sem
+  // nenhum controle de custo.
+  if (!assistRateLimiters) {
+    console.error(
+      "[api/assist] Rate limiter indisponível: credenciais do Upstash ausentes ou inválidas.",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  const identifier = getAssistRateLimitIdentifier(request);
+
+  let rateLimitResult;
+  try {
+    rateLimitResult = await checkRateLimit(assistRateLimiters, identifier);
+  } catch (error) {
+    // Fail-closed também para falha durante a verificação (ex.: Upstash
+    // indisponível/timeout). Não registrar a mensagem bruta do erro: pode,
+    // em tese, referenciar a URL do Redis — só o tipo da exceção é logado.
+    console.error(
+      "[api/assist] Falha ao verificar rate limit (tipo:",
+      error instanceof Error ? error.constructor.name : typeof error,
+      ")",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  if (!rateLimitResult.success) {
+    const retryAfterSeconds = Math.max(
+      0,
+      Math.ceil((rateLimitResult.reset - Date.now()) / 1000),
+    );
+
+    return NextResponse.json(
+      { error: RATE_LIMIT_MESSAGE },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds) },
+      },
+    );
+  }
 
   let body: unknown;
   try {

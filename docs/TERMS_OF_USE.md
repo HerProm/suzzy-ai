@@ -22,9 +22,15 @@ A SUZZY AI é uma plataforma de inteligência artificial voltada ao apoio de cor
 
 A SUZZY AI é uma **ferramenta de apoio** ao trabalho do corretor. Ela não substitui o corretor, sua atuação profissional, seu julgamento ou sua responsabilidade perante clientes e terceiros.
 
+A plataforma também disponibiliza dois assistentes de conversa baseados em IA, complementares à geração principal:
+- **Suzzy Assist** — chat público, disponível na página inicial, que responde dúvidas informativas sobre a SUZZY AI (como funciona, planos, uso da plataforma) para quem ainda não é usuário. A Suzzy Assist não executa ações, navegação ou contato futuro em nome do visitante — ela apenas informa.
+- **Suzzy Support** — chat disponível no Dashboard para usuários autenticados, que orienta sobre como usar a plataforma (por exemplo, como preencher o contexto, escolher cenários e objeções). A Suzzy Support **orienta o usuário; quem executa é o próprio usuário** — ela não realiza automaticamente ações no Dashboard em nome dele.
+
+Assim como a geração principal, nenhum dos dois assistentes de conversa substitui o julgamento profissional do corretor, e ambos podem cometer erros — ver seção 3.
+
 ## 3. Inteligência Artificial e limitações
 
-A SUZZY AI utiliza inteligência artificial para gerar parte relevante do conteúdo oferecido ao usuário. É essencial que o usuário compreenda que:
+Esta seção se aplica à geração principal da plataforma e também aos dois assistentes de conversa descritos na seção 2 (Suzzy Assist e Suzzy Support). A SUZZY AI utiliza inteligência artificial para gerar parte relevante do conteúdo oferecido ao usuário. É essencial que o usuário compreenda que:
 - as respostas e recomendações são geradas por um modelo de inteligência artificial e podem conter **erros, imprecisões ou recomendações inadequadas** à situação real;
 - o usuário **deve revisar** o conteúdo gerado antes de utilizá-lo, adaptá-lo ou enviá-lo a um cliente;
 - a decisão de enviar, adaptar ou utilizar qualquer resposta gerada é **exclusivamente do usuário**;
@@ -96,6 +102,8 @@ Toda a regulamentação comercial definitiva (preço final, forma e periodicidad
 ## 11. Disponibilidade e evolução do serviço
 
 A SUZZY AI poderá evoluir, receber melhorias, e ter funcionalidades adicionadas, alteradas ou descontinuadas ao longo do tempo. Não prometemos disponibilidade ininterrupta do serviço nem um acordo de nível de serviço (SLA) nesta versão dos Termos. Nada nesta seção pretende eliminar responsabilidades legais que não possam ser afastadas pela legislação brasileira aplicável.
+
+Para proteger a segurança, a estabilidade e o funcionamento técnico da plataforma — incluindo os assistentes de conversa Suzzy Assist e Suzzy Support (seção 2) — a SUZZY AI pode aplicar limites técnicos de uso (rate limiting), como um número máximo de mensagens em um curto período de tempo ou ao longo de um dia. Esses limites existem para prevenir abuso e uso excessivo e para controlar a operação técnica do serviço, e não representam uma promessa de disponibilidade ilimitada.
 
 ## 12. Suspensão e encerramento
 

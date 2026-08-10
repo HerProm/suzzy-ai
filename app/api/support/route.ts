@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createOpenAiClient } from "@/lib/ai/client";
 import { SUZZY_SUPPORT_KNOWLEDGE } from "@/lib/agents/support-knowledge";
+import { getSupportRateLimiters, checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_HISTORY_MESSAGES = 6;
+const RATE_LIMIT_MESSAGE =
+  "Você atingiu o limite temporário de mensagens do suporte. Aguarde um momento e tente novamente.";
+const SERVICE_UNAVAILABLE_MESSAGE =
+  "O suporte está temporariamente indisponível. Tente novamente em instantes.";
 // Respostas da própria Suzzy Support (max_output_tokens: 500) podem
 // ultrapassar 1000 caracteres em situações normais (observado: 1194 e 1282
 // caracteres em respostas reais e válidas) — o limite precisa ser maior que
@@ -153,12 +158,58 @@ export async function POST(request: Request) {
     );
   }
 
-  // Pendência (ver docs/SPRINT-16.md): rate limiting real ainda não
-  // implementado — não existe infraestrutura adequada no projeto para isso
-  // hoje. Mesmo sendo uma rota autenticada, o custo por usuário ainda não é
-  // limitado. Quando essa infraestrutura existir, a verificação deve
-  // acontecer aqui, logo após a checagem de autenticação acima, sem exigir
-  // mudança no restante desta rota.
+  // Rate limiting só depois da autenticação: um visitante sem sessão recebe
+  // 401 sem nunca chegar a consultar o Upstash. O identificador é o `sub`
+  // (claim padrão do JWT do Supabase, sempre presente) — estável por
+  // usuário, sem precisar de e-mail. Nunca logado, nunca enviado à OpenAI.
+  const supportRateLimiters = getSupportRateLimiters();
+
+  // Fail-closed (mesma decisão de /api/assist, registrada em
+  // lib/rate-limit/index.ts e docs/SPRINT-17.md): sem limitadores válidos,
+  // a rota não segue para a OpenAI.
+  if (!supportRateLimiters) {
+    console.error(
+      "[api/support] Rate limiter indisponível: credenciais do Upstash ausentes ou inválidas.",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  const identifier = `support:${data.claims.sub}`;
+
+  let rateLimitResult;
+  try {
+    rateLimitResult = await checkRateLimit(supportRateLimiters, identifier);
+  } catch (error) {
+    // Fail-closed também para falha durante a verificação. Não registrar a
+    // mensagem bruta do erro nem o identificador — só o tipo da exceção.
+    console.error(
+      "[api/support] Falha ao verificar rate limit (tipo:",
+      error instanceof Error ? error.constructor.name : typeof error,
+      ")",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  if (!rateLimitResult.success) {
+    const retryAfterSeconds = Math.max(
+      0,
+      Math.ceil((rateLimitResult.reset - Date.now()) / 1000),
+    );
+
+    return NextResponse.json(
+      { error: RATE_LIMIT_MESSAGE },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds) },
+      },
+    );
+  }
 
   let body: unknown;
   try {
