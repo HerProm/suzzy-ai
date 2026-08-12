@@ -121,9 +121,10 @@ export default function AiTransparencyPage() {
           .
         </p>
         <p className={LEGAL_P}>
-          À parte do processamento de IA, a Suzzy Assist e a Suzzy Support
-          também usam um mecanismo técnico de controle de limite de uso
-          (rate limiting), operado por outro fornecedor, com a finalidade
+          À parte do processamento de IA, os três usos descritos acima
+          (geração principal, Suzzy Assist e Suzzy Support) também usam um
+          mecanismo técnico de controle de limite de uso (rate limiting),
+          operado por outro fornecedor, com a finalidade
           de prevenir abuso e conter custos — esse mecanismo não participa
           da geração das respostas em si. Detalhes sobre esse fornecedor e
           os identificadores usados estão na{" "}

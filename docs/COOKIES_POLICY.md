@@ -27,6 +27,7 @@ A plataforma conta com dois assistentes de conversa (Suzzy Assist, público, na 
 - nenhum dos dois chats cria cookie próprio;
 - nenhum dos dois chats usa `localStorage` para guardar a conversa — cada conversa existe apenas na memória da página enquanto ela estiver aberta, e é perdida ao fechá-la ou recarregar;
 - o controle de limite de uso desses chats (rate limiting, usado para prevenir abuso e conter custos) é feito inteiramente no servidor e **não depende de cookie nem de armazenamento local** — usa, como identificador técnico, o IP do visitante (com hash) no caso da Suzzy Assist, e um identificador interno já associado à conta no caso da Suzzy Support;
+- o mesmo mecanismo de controle de limite de uso, também sem depender de cookie, protege a geração principal do Dashboard, usando o mesmo tipo de identificador interno de conta já usado pela Suzzy Support;
 - o acesso à Suzzy Support continua dependendo dos mesmos mecanismos de sessão/autenticação já descritos na seção 1 — nenhum cookie ou mecanismo adicional foi introduzido para viabilizar esse chat.
 
 Essa conclusão descreve o estado técnico atual do projeto, verificado por auditoria de código — não é, por si só, um parecer jurídico definitivo sobre a ausência de necessidade de banner de consentimento (ver seção 6).

@@ -8,10 +8,20 @@ import {
   STRATEGIES_BY_CATEGORY,
   type StrategyCategory,
 } from "@/lib/real-estate-strategies";
+import { getGenerateRateLimiters, checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_CONTEXT_LENGTH = 5000;
 const GENERATION_ERROR =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
+const RATE_LIMIT_MESSAGE =
+  "Você atingiu o limite temporário de gerações. Aguarde um momento e tente novamente.";
+const SERVICE_UNAVAILABLE_MESSAGE =
+  "A geração de respostas está temporariamente indisponível. Tente novamente em instantes.";
+// Aprovado na Tarefa 4 da Sprint 18 após microvalidação com 6 gerações reais
+// (pior caso observado: 1673 output_tokens, incluindo tokens de raciocínio,
+// que /api/generate não limita via reasoning.effort). 2500 dá ~50% de
+// margem sobre o pior caso observado.
+const MAX_OUTPUT_TOKENS = 2500;
 
 function isValidTask(value: unknown): value is Task {
   return (
@@ -33,6 +43,60 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Sessão não encontrada. Faça login novamente." },
       { status: 401 },
+    );
+  }
+
+  // Rate limiting só depois da autenticação: um visitante sem sessão recebe
+  // 401 sem nunca chegar a consultar o Upstash. O identificador é o `sub`
+  // (claim padrão do JWT do Supabase, sempre presente) — estável por
+  // usuário, sem precisar de e-mail. Nunca logado, nunca enviado à OpenAI.
+  // Mesmo padrão já usado em /api/support (Sprint 17, Tarefa 4).
+  const generateRateLimiters = getGenerateRateLimiters();
+
+  // Fail-closed (mesma decisão de /api/assist e /api/support, registrada em
+  // lib/rate-limit/index.ts): sem limitadores válidos, a rota não segue
+  // para a OpenAI.
+  if (!generateRateLimiters) {
+    console.error(
+      "[api/generate] Rate limiter indisponível: credenciais do Upstash ausentes ou inválidas.",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  const identifier = `generate:${data.claims.sub}`;
+
+  let rateLimitResult;
+  try {
+    rateLimitResult = await checkRateLimit(generateRateLimiters, identifier);
+  } catch (error) {
+    // Fail-closed também para falha durante a verificação. Não registrar a
+    // mensagem bruta do erro nem o identificador — só o tipo da exceção.
+    console.error(
+      "[api/generate] Falha ao verificar rate limit (tipo:",
+      error instanceof Error ? error.constructor.name : typeof error,
+      ")",
+    );
+    return NextResponse.json(
+      { error: SERVICE_UNAVAILABLE_MESSAGE },
+      { status: 503 },
+    );
+  }
+
+  if (!rateLimitResult.success) {
+    const retryAfterSeconds = Math.max(
+      0,
+      Math.ceil((rateLimitResult.reset - Date.now()) / 1000),
+    );
+
+    return NextResponse.json(
+      { error: RATE_LIMIT_MESSAGE },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds) },
+      },
     );
   }
 
@@ -105,6 +169,7 @@ export async function POST(request: Request) {
       model: "gpt-5-mini",
       instructions,
       input,
+      max_output_tokens: MAX_OUTPUT_TOKENS,
     });
 
     const text = response.output_text?.trim();

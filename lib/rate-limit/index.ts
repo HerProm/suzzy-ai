@@ -32,12 +32,18 @@
  * Nenhum comportamento de fail-open/fail-closed foi implementado nos
  * endpoints nesta tarefa — apenas documentado aqui para orientar as Tarefas
  * 3 e 4.
+ *
+ * ATUALIZAÇÃO (Sprint 18, Tarefa 4): a mesma decisão de fail-closed foi
+ * estendida a `/api/generate` (funcionalidade paga principal, autenticada),
+ * pela mesma razão do Support — mesmo autenticado, um usuário ainda poderia
+ * gerar custo sem limite durante uma indisponibilidade do Redis.
  */
 
 export { hasUpstashCredentials, getRedisClient } from "./redis";
 export {
   getAssistRateLimiters,
   getSupportRateLimiters,
+  getGenerateRateLimiters,
   type AgentRateLimiters,
 } from "./limiters";
 export { checkRateLimit, type RateLimitCheckResult } from "./check";
@@ -45,6 +51,7 @@ export { getAssistRateLimitIdentifier } from "./identifier";
 export {
   ASSIST_RATE_LIMIT_POLICY,
   SUPPORT_RATE_LIMIT_POLICY,
+  GENERATE_RATE_LIMIT_POLICY,
   type AgentRateLimitPolicy,
   type RateLimitWindowConfig,
 } from "./policies";

@@ -3,6 +3,7 @@ import { getRedisClient } from "./redis";
 import {
   ASSIST_RATE_LIMIT_POLICY,
   SUPPORT_RATE_LIMIT_POLICY,
+  GENERATE_RATE_LIMIT_POLICY,
   type AgentRateLimitPolicy,
 } from "./policies";
 
@@ -42,6 +43,7 @@ function createAgentRateLimiters(
 
 let assistRateLimiters: AgentRateLimiters | null | undefined;
 let supportRateLimiters: AgentRateLimiters | null | undefined;
+let generateRateLimiters: AgentRateLimiters | null | undefined;
 
 /**
  * Limitadores da Suzzy Assist (pública). Retorna `null` quando as credenciais
@@ -71,4 +73,20 @@ export function getSupportRateLimiters(): AgentRateLimiters | null {
     );
   }
   return supportRateLimiters;
+}
+
+/**
+ * Limitadores de `/api/generate` (autenticada, funcionalidade paga
+ * principal). Retorna `null` quando as credenciais do Upstash ainda não
+ * estão configuradas — a rota trata isso como fail-closed (Tarefa 4 da
+ * Sprint 18).
+ */
+export function getGenerateRateLimiters(): AgentRateLimiters | null {
+  if (generateRateLimiters === undefined) {
+    generateRateLimiters = createAgentRateLimiters(
+      "ratelimit:generate",
+      GENERATE_RATE_LIMIT_POLICY,
+    );
+  }
+  return generateRateLimiters;
 }

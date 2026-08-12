@@ -108,7 +108,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="flex flex-col gap-2">
           <h3 className="font-medium text-slate-900">
-            Conversas com a Suzzy Assist e a Suzzy Support
+            Conversas com a Suzzy Assist e a Suzzy Support, e limites de uso
           </h3>
           <p className={LEGAL_P}>
             A plataforma conta com dois assistentes de conversa baseados em
@@ -134,8 +134,9 @@ export default function PrivacyPolicyPage() {
           </p>
           <p className={LEGAL_P}>
             Para prevenir abuso e conter custos, a plataforma aplica limites
-            técnicos de uso (rate limiting) a esses dois chats, com base em
-            um identificador diferente para cada um:
+            técnicos de uso (rate limiting) também à geração principal, além
+            desses dois chats, com base em um identificador diferente
+            conforme o caso:
           </p>
           <ul className={LEGAL_UL}>
             <li>
@@ -147,17 +148,17 @@ export default function PrivacyPolicyPage() {
               então não tratamos esse dado como anônimo.
             </li>
             <li>
-              <strong>Suzzy Support</strong>: um identificador interno já
-              associado à conta do usuário autenticado, reaproveitado da
-              própria autenticação, usado apenas como chave técnica de
-              controle de limite.
+              <strong>Suzzy Support e geração principal</strong>: um
+              identificador interno já associado à conta do usuário
+              autenticado, reaproveitado da própria autenticação, usado
+              apenas como chave técnica de controle de limite.
             </li>
           </ul>
           <p className={LEGAL_P}>
             Esses identificadores são usados exclusivamente para aplicar os
             limites técnicos de uso descritos acima, nunca são enviados ao
             fornecedor de inteligência artificial e nunca são associados ao
-            conteúdo das conversas.
+            conteúdo das conversas ou das solicitações de geração.
           </p>
         </div>
       </section>
@@ -185,8 +186,9 @@ export default function PrivacyPolicyPage() {
             real;
           </li>
           <li>
-            aplicar limites técnicos de uso (rate limiting) a esses dois
-            chats, para prevenir abuso e conter custos operacionais;
+            aplicar limites técnicos de uso (rate limiting) à geração
+            principal e a esses dois chats, para prevenir abuso e conter
+            custos operacionais;
           </li>
           <li>
             garantir a segurança e o funcionamento técnico da plataforma,
@@ -249,11 +251,12 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong>Upstash</strong> — utilizado como infraestrutura de
-            controle de limite de uso (rate limiting) da Suzzy Assist e da
-            Suzzy Support, por meio de um banco de dados Redis gerenciado
-            por esse fornecedor. Trata apenas os identificadores descritos
-            acima e um contador numérico de uso — nunca o conteúdo das
-            mensagens trocadas nos chats. O banco utilizado está
+            controle de limite de uso (rate limiting) da geração principal,
+            da Suzzy Assist e da Suzzy Support, por meio de um banco de
+            dados Redis gerenciado por esse fornecedor. Trata apenas os
+            identificadores descritos acima e um contador numérico de uso —
+            nunca o conteúdo do contexto informado, das respostas geradas ou
+            das mensagens trocadas nos chats. O banco utilizado está
             configurado, na infraestrutura atual, na região de São Paulo,
             Brasil; essa informação é um dado técnico operacional, e não
             deve ser interpretada, por si só, como conclusão jurídica sobre
@@ -288,9 +291,10 @@ export default function PrivacyPolicyPage() {
         <p className={LEGAL_P}>
           A Suzzy Assist e a Suzzy Support não criam cookies próprios nem
           usam <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.9em]">localStorage</code> para
-          guardar as conversas — o controle de limite de uso desses chats
-          (rate limiting) é feito inteiramente no servidor, sem depender de
-          nenhum mecanismo de armazenamento no navegador do usuário.
+          guardar as conversas — o controle de limite de uso desses chats e
+          da geração principal (rate limiting) é feito inteiramente no
+          servidor, sem depender de nenhum mecanismo de armazenamento no
+          navegador do usuário.
         </p>
         <p className={LEGAL_P}>
           Não utilizamos cookies de publicidade, rastreamento ou analytics.
@@ -319,12 +323,12 @@ export default function PrivacyPolicyPage() {
             estiver aberta;
           </li>
           <li>
-            os identificadores usados para rate limiting da Suzzy Assist e
-            da Suzzy Support ficam armazenados no Upstash apenas pelo tempo
-            técnico da própria janela de limite (contadores da janela curta
-            expiram em cerca de 1 minuto; contadores diários expiram em
-            cerca de 1 dia) — não configuramos retenção além do necessário
-            para aplicar o limite;
+            os identificadores usados para rate limiting da geração
+            principal, da Suzzy Assist e da Suzzy Support ficam armazenados
+            no Upstash apenas pelo tempo técnico da própria janela de limite
+            (contadores da janela curta expiram em cerca de 1 minuto;
+            contadores diários expiram em cerca de 1 dia) — não configuramos
+            retenção além do necessário para aplicar o limite;
           </li>
           <li>
             os dados processados pelos fornecedores externos (Supabase,
@@ -438,9 +442,10 @@ export default function PrivacyPolicyPage() {
         </p>
         <p className={LEGAL_P}>
           Exceção operacional conhecida: o banco de dados Redis utilizado
-          pelo Upstash para o rate limiting da Suzzy Assist e da Suzzy
-          Support está configurado, na infraestrutura atual, na região de
-          São Paulo, Brasil. Isso é registrado aqui apenas como informação
+          pelo Upstash para o rate limiting da geração principal, da Suzzy
+          Assist e da Suzzy Support está configurado, na infraestrutura
+          atual, na região de São Paulo, Brasil. Isso é registrado aqui
+          apenas como informação
           técnica sobre a configuração atual do serviço — não representa,
           por si só, uma conclusão jurídica sobre onde os dados efetivamente
           residem, sob qual contrato, ou se ainda assim há transferência

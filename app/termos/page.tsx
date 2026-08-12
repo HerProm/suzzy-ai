@@ -265,9 +265,10 @@ export default function TermsOfUsePage() {
         </p>
         <p className={LEGAL_P}>
           Para proteger a segurança, a estabilidade e o funcionamento
-          técnico da plataforma — incluindo os assistentes de conversa
-          Suzzy Assist e Suzzy Support — a SUZZY AI pode aplicar limites
-          técnicos de uso (rate limiting), como um número máximo de
+          técnico da plataforma — incluindo a geração principal e os
+          assistentes de conversa Suzzy Assist e Suzzy Support — a SUZZY AI
+          pode aplicar limites técnicos de uso (rate limiting), como um
+          número máximo de
           mensagens em um curto período de tempo ou ao longo de um dia.
           Esses limites existem para prevenir abuso e uso excessivo e para
           controlar a operação técnica do serviço, e não representam uma

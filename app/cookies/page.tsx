@@ -104,6 +104,11 @@ export default function CookiesPolicyPage() {
             servidor e não depende de cookie nem de armazenamento local;
           </li>
           <li>
+            o mesmo mecanismo, também sem depender de cookie, protege a
+            geração principal do Dashboard, usando o mesmo tipo de
+            identificador interno de conta já usado pela Suzzy Support;
+          </li>
+          <li>
             o acesso à Suzzy Support continua dependendo dos mesmos
             mecanismos de sessão/autenticação já descritos acima — nenhum
             cookie ou mecanismo adicional foi introduzido para viabilizar

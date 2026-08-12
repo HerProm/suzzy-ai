@@ -30,3 +30,17 @@ export const SUPPORT_RATE_LIMIT_POLICY: AgentRateLimitPolicy = {
   shortWindow: { requests: 10, window: "60 s" },
   daily: { requests: 100, window: "1 d" },
 };
+
+/**
+ * `/api/generate` (autenticada, por usuário): rajada curta + teto diário.
+ * Definida na Tarefa 4 da Sprint 18, após auditoria e microvalidação real —
+ * não copiada de Assist/Support. Janela curta um pouco mais generosa que a
+ * do Support (permite alguns cliques em "Gerar novamente" em sequência) e
+ * teto diário maior que o do Support, por ser a funcionalidade paga central
+ * do produto, não um chat de dúvidas. Política provisória pré-cobrança —
+ * única para todos os usuários autenticados até que planos pagos existam.
+ */
+export const GENERATE_RATE_LIMIT_POLICY: AgentRateLimitPolicy = {
+  shortWindow: { requests: 8, window: "60 s" },
+  daily: { requests: 150, window: "1 d" },
+};

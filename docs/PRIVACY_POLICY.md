@@ -40,7 +40,7 @@ A plataforma produz respostas e recomendações a partir das informações forne
 
 Na versão atual auditada da plataforma, o histórico de gerações (contexto, tarefa e resposta) é armazenado **localmente no navegador do usuário**, por meio da tecnologia `localStorage`, e **não é armazenado em uma tabela própria da aplicação no servidor**. Essa afirmação descreve o funcionamento técnico atual, comprovado por auditoria do código, e não deve ser generalizada para versões futuras da plataforma, que poderão adotar uma arquitetura diferente.
 
-### E) Conversas com a Suzzy Assist e a Suzzy Support
+### E) Conversas com a Suzzy Assist e a Suzzy Support, e limites de uso
 
 A plataforma conta com dois assistentes de conversa baseados em IA, adicionados após a primeira versão desta Política:
 
@@ -49,11 +49,11 @@ A plataforma conta com dois assistentes de conversa baseados em IA, adicionados 
 
 Em nenhum dos dois casos a conversa é salva em uma tabela própria da aplicação no servidor nem em `localStorage` do navegador nesta versão — a conversa existe apenas enquanto a página/aba estiver aberta e é perdida ao fechá-la ou recarregar. Essa afirmação descreve o funcionamento técnico atual, comprovado por auditoria do código, e pode mudar em versões futuras.
 
-Para controlar o uso desses dois chats e prevenir abuso (por exemplo, um grande volume de mensagens automatizadas em pouco tempo), a plataforma aplica limites técnicos de uso (rate limiting) com base em um identificador diferente para cada agente:
+Para controlar o uso e prevenir abuso (por exemplo, um grande volume de mensagens automatizadas em pouco tempo, ou chamadas repetidas fora do uso normal), a plataforma aplica limites técnicos de uso (rate limiting) também à geração principal, além dos dois chats, com base em um identificador diferente conforme o caso:
 - **Suzzy Assist**: o endereço IP do visitante, transformado em um valor de hash (função criptográfica que converte o IP em uma sequência de caracteres) antes de ser usado como chave técnica — o IP original não é armazenado. Isso é uma técnica de **pseudonimização**, não de anonimização: tecnicamente, ainda é possível, em tese, associar o valor de hash a um IP conhecido, então não tratamos esse dado como anônimo.
-- **Suzzy Support**: um identificador interno já associado à conta do usuário autenticado (reaproveitado da própria autenticação, sem coleta de um novo dado), usado apenas como chave técnica de controle de limite.
+- **Suzzy Support e geração principal**: um identificador interno já associado à conta do usuário autenticado (reaproveitado da própria autenticação, sem coleta de um novo dado), usado apenas como chave técnica de controle de limite.
 
-Esses identificadores são usados exclusivamente para aplicar os limites técnicos de uso descritos acima, nunca são enviados ao fornecedor de inteligência artificial (ver seção 6) e nunca são associados ao conteúdo das conversas. Mais detalhes sobre o fornecedor técnico responsável por esse mecanismo estão na seção 6.
+Esses identificadores são usados exclusivamente para aplicar os limites técnicos de uso descritos acima, nunca são enviados ao fornecedor de inteligência artificial (ver seção 6) e nunca são associados ao conteúdo das conversas ou das solicitações de geração. Mais detalhes sobre o fornecedor técnico responsável por esse mecanismo estão na seção 6.
 
 ## 4. Finalidades
 
@@ -63,7 +63,7 @@ Os dados tratados pela SUZZY AI têm as seguintes finalidades, compatíveis com 
 - produzir respostas e recomendações por meio de inteligência artificial;
 - manter o histórico de gerações localmente no navegador do usuário, para sua própria conveniência;
 - processar as mensagens trocadas com a Suzzy Assist e a Suzzy Support (seção 3-E), para gerar respostas de apoio e orientação em tempo real;
-- aplicar limites técnicos de uso (rate limiting) a esses dois chats, para prevenir abuso e conter custos operacionais;
+- aplicar limites técnicos de uso (rate limiting) à geração principal e a esses dois chats, para prevenir abuso e conter custos operacionais;
 - garantir a segurança e o funcionamento técnico da plataforma, quando aplicável.
 
 Não realizamos, hoje, atividades de marketing direcionado, criação de perfil de comportamento (profiling), publicidade ou analytics de rastreamento — nenhuma dessas práticas foi identificada na auditoria técnica do projeto.
@@ -83,7 +83,7 @@ Para funcionar, a SUZZY AI utiliza os seguintes fornecedores tecnológicos, iden
 - **Supabase** — utilizado para autenticação (login, manutenção de sessão e logout);
 - **Google** — utilizado apenas quando o usuário escolhe fazer login com sua conta Google, conforme as permissões concedidas por ele naquele momento;
 - **OpenAI** — utilizado para o processamento das solicitações de inteligência artificial em três fluxos da plataforma: (1) a geração principal (contexto informado pelo usuário, tarefa, e, quando aplicável, cenário/objeção/estratégia selecionados); (2) a Suzzy Assist (mensagens do chat público e o histórico recente da própria conversa); (3) a Suzzy Support (mensagens do chat autenticado e o histórico recente da própria conversa — ver seção 3-E). Os identificadores usados para rate limiting (IP com hash, identificador de conta) **não** são enviados a esse fornecedor.
-- **Upstash** — utilizado como infraestrutura de controle de limite de uso (rate limiting) da Suzzy Assist e da Suzzy Support, por meio de um banco de dados Redis gerenciado por esse fornecedor. Trata apenas os identificadores descritos na seção 3-E e um contador numérico de uso — nunca o conteúdo das mensagens trocadas nos chats. O banco utilizado está configurado, na infraestrutura atual, na região de São Paulo, Brasil; essa informação é registrada aqui como dado técnico operacional, e não deve ser interpretada, por si só, como conclusão jurídica sobre residência ou transferência internacional de dados — ver seção 13.
+- **Upstash** — utilizado como infraestrutura de controle de limite de uso (rate limiting) da geração principal, da Suzzy Assist e da Suzzy Support, por meio de um banco de dados Redis gerenciado por esse fornecedor. Trata apenas os identificadores descritos na seção 3-E e um contador numérico de uso — nunca o conteúdo do contexto informado, das respostas geradas ou das mensagens trocadas nos chats. O banco utilizado está configurado, na infraestrutura atual, na região de São Paulo, Brasil; essa informação é registrada aqui como dado técnico operacional, e não deve ser interpretada, por si só, como conclusão jurídica sobre residência ou transferência internacional de dados — ver seção 13.
 
 Não afirmamos, nesta versão do documento, a localização geográfica dos servidores dos demais fornecedores, seus prazos de retenção específicos, certificações obtidas ou condições contratuais aplicáveis à conta da SUZZY AI, pois essas informações ainda não estão confirmadas — ver seção 13 e os pontos "A confirmar" registrados em `docs/SPRINT-15.md`.
 
@@ -93,7 +93,7 @@ A plataforma utiliza:
 - **cookies ou mecanismos de sessão estritamente necessários à autenticação**, geridos automaticamente pelo provedor de autenticação (Supabase), para manter o usuário conectado;
 - **`localStorage`** do navegador, para manter o histórico local de gerações descrito na seção 3-D.
 
-A Suzzy Assist e a Suzzy Support (seção 3-E) não criam cookies próprios nem usam `localStorage` para guardar as conversas — o controle de limite de uso desses chats (rate limiting) é feito inteiramente no servidor, sem depender de nenhum mecanismo de armazenamento no navegador do usuário.
+A Suzzy Assist e a Suzzy Support (seção 3-E) não criam cookies próprios nem usam `localStorage` para guardar as conversas — o controle de limite de uso desses chats e da geração principal (rate limiting) é feito inteiramente no servidor, sem depender de nenhum mecanismo de armazenamento no navegador do usuário.
 
 Não utilizamos cookies de publicidade, rastreamento ou analytics — nenhum foi identificado na auditoria técnica do projeto. Uma análise mais detalhada sobre cookies e tecnologias semelhantes está no documento específico [Cookies e Tecnologias Semelhantes](./COOKIES_POLICY.md).
 
@@ -102,7 +102,7 @@ Não utilizamos cookies de publicidade, rastreamento ou analytics — nenhum foi
 Sobre o tempo de retenção dos dados tratados pela plataforma:
 - o histórico local de gerações permanece no dispositivo/navegador do usuário até que seja removido por ele, conforme os mecanismos disponíveis no próprio navegador (ex.: limpeza de dados de navegação) ou, futuramente, por um mecanismo próprio da plataforma;
 - as conversas com a Suzzy Assist e a Suzzy Support (seção 3-E) não são retidas pela aplicação — existem apenas enquanto a página/aba estiver aberta;
-- os identificadores usados para rate limiting da Suzzy Assist e da Suzzy Support (seção 3-E) ficam armazenados no Upstash apenas pelo tempo técnico da própria janela de limite (contadores da janela curta expiram em cerca de 1 minuto; contadores diários expiram em cerca de 1 dia) — não configuramos retenção além do necessário para aplicar o limite;
+- os identificadores usados para rate limiting da geração principal, da Suzzy Assist e da Suzzy Support (seção 3-E) ficam armazenados no Upstash apenas pelo tempo técnico da própria janela de limite (contadores da janela curta expiram em cerca de 1 minuto; contadores diários expiram em cerca de 1 dia) — não configuramos retenção além do necessário para aplicar o limite;
 - os dados processados pelos fornecedores externos (Supabase, Google, OpenAI, Upstash) estão sujeitos às práticas e configurações de retenção aplicáveis a cada um desses fornecedores, que não são definidas por este documento;
 - períodos específicos de retenção da sessão de autenticação e de eventuais dados tratados pelos fornecedores ainda precisam ser confirmados.
 
@@ -149,7 +149,7 @@ Adotamos medidas técnicas e organizacionais compatíveis com o funcionamento at
 
 Como a SUZZY AI utiliza fornecedores tecnológicos internacionais (ver seção 6), poderá existir tratamento ou transferência internacional de dados, conforme a infraestrutura e os serviços efetivamente utilizados por esses fornecedores. Não indicamos, nesta versão do documento, países ou servidores específicos, pois essa informação ainda não está confirmada.
 
-**Exceção operacional conhecida**: o banco de dados Redis utilizado pelo Upstash para o rate limiting da Suzzy Assist e da Suzzy Support (seção 6) está configurado, na infraestrutura atual, na região de São Paulo, Brasil. Isso é registrado aqui apenas como informação técnica sobre a configuração atual do serviço — não representa, por si só, uma conclusão jurídica sobre onde os dados efetivamente residem, sob qual contrato, ou se ainda assim há transferência internacional (por exemplo, dependendo da sede do fornecedor e de eventuais subcontratados). Este ponto específico também deve ser confirmado na revisão jurídica profissional mencionada abaixo.
+**Exceção operacional conhecida**: o banco de dados Redis utilizado pelo Upstash para o rate limiting da geração principal, da Suzzy Assist e da Suzzy Support (seção 6) está configurado, na infraestrutura atual, na região de São Paulo, Brasil. Isso é registrado aqui apenas como informação técnica sobre a configuração atual do serviço — não representa, por si só, uma conclusão jurídica sobre onde os dados efetivamente residem, sob qual contrato, ou se ainda assim há transferência internacional (por exemplo, dependendo da sede do fornecedor e de eventuais subcontratados). Este ponto específico também deve ser confirmado na revisão jurídica profissional mencionada abaixo.
 
 Esta seção deve ser revisada por profissional jurídico antes do lançamento comercial, especialmente quanto às salvaguardas exigidas pela LGPD para transferência internacional de dados.
 

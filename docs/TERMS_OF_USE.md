@@ -103,7 +103,7 @@ Toda a regulamentação comercial definitiva (preço final, forma e periodicidad
 
 A SUZZY AI poderá evoluir, receber melhorias, e ter funcionalidades adicionadas, alteradas ou descontinuadas ao longo do tempo. Não prometemos disponibilidade ininterrupta do serviço nem um acordo de nível de serviço (SLA) nesta versão dos Termos. Nada nesta seção pretende eliminar responsabilidades legais que não possam ser afastadas pela legislação brasileira aplicável.
 
-Para proteger a segurança, a estabilidade e o funcionamento técnico da plataforma — incluindo os assistentes de conversa Suzzy Assist e Suzzy Support (seção 2) — a SUZZY AI pode aplicar limites técnicos de uso (rate limiting), como um número máximo de mensagens em um curto período de tempo ou ao longo de um dia. Esses limites existem para prevenir abuso e uso excessivo e para controlar a operação técnica do serviço, e não representam uma promessa de disponibilidade ilimitada.
+Para proteger a segurança, a estabilidade e o funcionamento técnico da plataforma — incluindo a geração principal e os assistentes de conversa Suzzy Assist e Suzzy Support (seção 2) — a SUZZY AI pode aplicar limites técnicos de uso (rate limiting), como um número máximo de mensagens em um curto período de tempo ou ao longo de um dia. Esses limites existem para prevenir abuso e uso excessivo e para controlar a operação técnica do serviço, e não representam uma promessa de disponibilidade ilimitada.
 
 ## 12. Suspensão e encerramento
 

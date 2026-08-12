@@ -41,7 +41,7 @@ A geração de respostas nos três usos descritos na seção 1 utiliza tecnologi
 
 Não afirmamos, neste documento, a localização geográfica dos servidores utilizados, prazos específicos de retenção de dados por esse fornecedor, certificações obtidas ou quaisquer condições contratuais não confirmadas para a conta da SUZZY AI — para mais detalhes sobre fornecedores e tratamento de dados, consulte a [Política de Privacidade](./PRIVACY_POLICY.md).
 
-À parte do processamento de IA, a Suzzy Assist e a Suzzy Support também usam um mecanismo técnico de controle de limite de uso (rate limiting), operado por outro fornecedor (Upstash), com a finalidade de prevenir abuso e conter custos — esse mecanismo não participa da geração das respostas em si. Detalhes sobre esse fornecedor e os identificadores usados estão na [Política de Privacidade](./PRIVACY_POLICY.md).
+À parte do processamento de IA, os três usos descritos na seção 1 (geração principal, Suzzy Assist e Suzzy Support) também usam um mecanismo técnico de controle de limite de uso (rate limiting), operado por outro fornecedor (Upstash), com a finalidade de prevenir abuso e conter custos — esse mecanismo não participa da geração das respostas em si. Detalhes sobre esse fornecedor e os identificadores usados estão na [Política de Privacidade](./PRIVACY_POLICY.md).
 
 ## 4. Limitações da IA
 
