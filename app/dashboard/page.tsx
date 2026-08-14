@@ -14,13 +14,23 @@ export default async function DashboardPage() {
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-6 py-4">
           <span className="text-lg font-semibold tracking-tight text-slate-900">
             SUZZY AI
           </span>
-          <span className="text-sm text-slate-500">
-            Assistente para corretores
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-500">
+              Assistente para corretores
+            </span>
+            <form action="/auth/logout" method="POST">
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                Sair
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
