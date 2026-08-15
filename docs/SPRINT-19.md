@@ -379,6 +379,136 @@ Adicionado, no cabeçalho do Dashboard, um `<form action="/auth/logout" method="
 
 ---
 
+## Diagnóstico — Magic Link não conclui sessão em produção (investigação, sem correção aplicada)
+
+Tarefa exclusivamente de diagnóstico. **Nenhum arquivo de código foi alterado.**
+
+### 1–2. Fluxo atual auditado (confirmado por leitura de código, não presumido)
+
+- `app/login/page.tsx`: `handleMagicLinkLogin()` chama `supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: \`${NEXT_PUBLIC_APP_URL}/auth/callback\` } })` — envia o e-mail corretamente, apontando para a **mesma rota de callback usada pelo Google**.
+- `app/auth/callback/route.ts`: lê **somente** o parâmetro `code` da URL (`searchParams.get("code")`) e, se presente, chama `exchangeCodeForSession(code)`. **Não existe nenhum tratamento para `token_hash` ou `type`** — confirmado por leitura completa do arquivo (19 linhas, sem nenhuma outra ramificação).
+- Busca em todo o repositório por `verifyOtp`/`token_hash`: **nenhuma ocorrência em nenhum arquivo de código** — confirmado, não presumido.
+- Não existe nenhuma outra rota em `app/auth/` além de `callback/route.ts` e `logout/route.ts` (confirmado por listagem direta do diretório).
+
+**Conclusão da auditoria de código**: a aplicação tem exatamente **uma** rota de retorno de autenticação, e ela só sabe processar o formato de retorno do OAuth (`?code=...` → `exchangeCodeForSession`). Não existe, em lugar nenhum do código, um caminho que leve a `verifyOtp({ token_hash, type })`.
+
+### 3. Documentação oficial do Supabase (consultada)
+
+Consultado `supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr` (guia oficial específico para este cenário — SSR + fluxo PKCE, que é o que `@supabase/ssr` usa por padrão e o que já confirmamos funcionando para o Google via `code`/`exchangeCodeForSession`).
+
+Confirmado na documentação oficial:
+- Para e-mail/Magic Link com PKCE em SSR, o template de e-mail deve apontar para uma URL no formato `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next={{ .RedirectTo }}` — **um formato de parâmetros completamente diferente do OAuth** (`token_hash`+`type`, nunca `code`).
+- A rota que recebe esse link deve chamar `supabase.auth.verifyOtp({ type, token_hash })` — **não** `exchangeCodeForSession`.
+- No exemplo oficial da Supabase, essa é uma rota própria (`/auth/confirm`), com uma lógica de verificação diferente da usada para OAuth.
+
+**Isso confirma, com fonte primária, que Magic Link sob PKCE/SSR é estruturalmente um fluxo diferente do OAuth** — não é uma variação do mesmo `code`, é outro mecanismo (`token_hash`/`verifyOtp`), que este projeto nunca implementou.
+
+### 4. Template de e-mail — o que precisa ser verificado no painel (não acessado nesta tarefa)
+
+Sem acessar o painel, não é possível confirmar qual template exato está configurado hoje. **O que você precisa verificar** (Supabase Dashboard → Authentication → Email Templates → Magic Link): se o template ainda usa a variável padrão de confirmação (`{{ .ConfirmationURL }}`, formato de fábrica) ou se já foi customizado para o formato `token_hash`/`type` recomendado pela Supabase para PKCE/SSR. **Pela ausência completa de qualquer rota/código no projeto capaz de processar `token_hash`, é seguro concluir que o template nunca foi customizado para esse fluxo** — não há necessidade de acessar o painel para saber isso, o código já prova que o lado da aplicação não está pronto para nenhum dos dois formatos que a Supabase poderia enviar (nem `token_hash`, que precisaria de uma rota nova; nem o antigo formato implícito com tokens no fragmento da URL, que nunca chegaria ao servidor de qualquer forma).
+
+Nenhum token real foi solicitado ou necessário para chegar a essa conclusão.
+
+### 5. Evidência (sem acessar o link secreto)
+
+- Código: callback só aceita `code` (seção 1–2).
+- Documentação oficial: Magic Link em PKCE/SSR exige `token_hash`+`verifyOtp`, formato diferente (seção 3).
+- Sintoma relatado: usuário volta para `/login` — exatamente o comportamento do próprio `app/auth/callback/route.ts` quando `code` está ausente (`if (code) {...}`, senão cai direto no `return NextResponse.redirect(`${origin}/login`)` final) — consistente com a rota receber uma requisição sem o parâmetro que ela sabe processar, qualquer que seja o formato realmente enviado pelo Supabase.
+
+### 6. Causa raiz
+
+**A + B, combinadas — a mesma causa vista por dois ângulos:**
+- **A. O callback atual só suporta OAuth/code exchange** — confirmado por leitura de código, sem exceção.
+- **B. Nenhuma rota do projeto processa o formato que a Supabase usa para Magic Link sob PKCE/SSR** (`token_hash`/`type` via `verifyOtp`) — confirmado pela documentação oficial e pela ausência total dessa lógica no código.
+
+Não há evidência de **C** (Redirect URL incorreta — as mesmas URLs já validadas para o Google, e o Google usa a mesma rota com sucesso), nem de **D** (sessão criada mas redirect errado — nada indica que uma sessão chegou a ser criada). **E** (link expirado/uso único) não pode ser descartado como fator pontual em um teste específico, mas não é a causa estrutural — mesmo um Magic Link novo e válido falharia hoje, porque a rota de destino não sabe processar o formato que ele carrega.
+
+### 7. Correção mínima recomendada (não implementada)
+
+**Duas alternativas, ambas preservando o Google OAuth sem tocar nele:**
+
+**Opção 1 — rota dedicada (recomendada, menor risco)**: criar `app/auth/confirm/route.ts`, no mesmo padrão de `app/auth/callback/route.ts` (mesmo `createClient()`, mesma lógica de redirect para `/dashboard`/`/login`), mas lendo `token_hash` e `type` da URL e chamando `supabase.auth.verifyOtp({ type, token_hash })` em vez de `exchangeCodeForSession`. Exigiria também alterar uma linha em `app/login/page.tsx` (`emailRedirectTo` apontando para `/auth/confirm` em vez de `/auth/callback`). **Zero alteração em `app/auth/callback/route.ts`** — o Google continua exatamente como está, sem nenhum risco de regressão nele.
+
+**Opção 2 — unificar no callback existente (alternativa, risco um pouco maior)**: modificar `app/auth/callback/route.ts` para checar `code` primeiro (caminho atual do Google, inalterado) e, se ausente, checar `token_hash`+`type` e chamar `verifyOtp`. Mantém `emailRedirectTo` apontando para `/auth/callback` (sem alterar `login/page.tsx`), mas modifica um arquivo hoje funcional — risco baixo, porém não nulo, já que qualquer edição num arquivo que já funciona para o Google merece re-teste do Google depois.
+
+**Em ambas as opções, é necessária uma ação manual externa, fora do código**: customizar o template de Magic Link no painel do Supabase (Authentication → Email Templates) para usar `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=...` (Opção 1) ou `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email&next=...` (Opção 2) — sem essa mudança no painel, nenhuma correção de código sozinha resolve o problema, porque o e-mail continuaria sendo gerado no formato atual. Também será necessário adicionar a nova/mesma URL às Redirect URLs já configuradas, caso a Opção 1 (rota nova `/auth/confirm`) seja escolhida.
+
+**Nada disso foi implementado nesta tarefa.**
+
+---
+
+## Correção — Rota de confirmação do Magic Link (concluída, aguardando aprovação para deploy)
+
+Implementada a **Opção 1** proposta no diagnóstico anterior: rota dedicada, sem tocar em `app/auth/callback/route.ts`.
+
+### Arquivos criados/alterados
+
+- **Criado**: `app/auth/confirm/route.ts` — nova rota `GET`, no mesmo padrão estrutural de `app/auth/callback/route.ts` (mesmo `createClient()`, mesma lógica de redirect via `origin` da própria requisição — nunca um domínio fixo no código). Lê `token_hash` e `type` da query string; só aceita `type=email` (único tipo de OTP usado por este fluxo de login — qualquer outro valor, como `recovery`/`signup`/`invite`, é rejeitado antes mesmo de chamar `verifyOtp`); chama `supabase.auth.verifyOtp({ type, token_hash })`; redireciona para `/dashboard` em sucesso ou `/login` em qualquer falha (parâmetros ausentes, tipo não permitido, token inválido/expirado/já usado — todos caem no mesmo fallback, sem distinção exposta ao usuário).
+- **Alterado**: `app/login/page.tsx` — uma linha: `emailRedirectTo` do `signInWithOtp` passou de `.../auth/callback` para `.../auth/confirm`. `handleGoogleLogin`/`redirectTo` (linha 19, `.../auth/callback`) **não foi tocado**.
+- **Não alterado**: `app/auth/callback/route.ts` — confirmado via `git status`, o arquivo não aparece na lista de modificados.
+
+### Segurança confirmada
+
+- `token_hash` só é lido da URL e passado diretamente para `supabase.auth.verifyOtp()` — nunca logado (`console.error`/`console.log`), nunca persistido pela aplicação (nenhum banco de dados de aplicação existe, reforçado nas Sprints anteriores), nunca retornado na resposta (a rota só retorna redirects `307`, sem corpo).
+- Nenhum detalhe interno do erro do Supabase é exposto — sucesso e qualquer tipo de falha levam ao mesmo redirect genérico para `/login`, sem mensagem específica.
+- A sessão continua sendo estabelecida exclusivamente via cookies pelo cliente Supabase SSR já existente (`lib/supabase/server.ts`, reaproveitado sem alteração) — nenhum armazenamento próprio de token foi criado.
+- Link inválido/expirado: `verifyOtp` retorna erro → `/login`, sem sessão criada — testado localmente com um `token_hash` inválido (ver testes abaixo).
+- Link já utilizado: o comportamento de uso único é garantido pelo próprio Supabase (o token deixa de ser válido no lado do servidor de autenticação após o primeiro uso) — não é algo que a aplicação precise controlar.
+- Dashboard continua protegido pela mesma checagem `getClaims()` já existente, sem nenhuma alteração.
+
+### Testes
+
+- `npm run lint` ✅.
+- `npm run build` ✅ — agora **16 rotas** (as 15 anteriores + `/auth/confirm`).
+- **Testado localmente** (servidor de desenvolvimento real, sem fabricar nenhum token válido):
+  - `GET /auth/confirm` sem parâmetros → `307` para `/login`.
+  - `GET /auth/confirm?token_hash=invalidtoken123&type=email` → `307` para `/login` (token inválido rejeitado pelo próprio Supabase).
+  - `GET /auth/confirm?token_hash=abc&type=recovery` → `307` para `/login` (tipo não permitido, rejeitado antes de chamar `verifyOtp`).
+  - `GET /auth/callback` sem `code` → `307` para `/login` — **comportamento idêntico ao de antes**, confirma que o Google OAuth não foi afetado.
+  - `GET /dashboard` sem sessão → `307` para `/login` — proteção inalterada.
+  - `POST /auth/logout` → `303` para `/login` — inalterado.
+- **Não testado** (exigiria um `token_hash` real, válido, de um e-mail genuíno — não fabricado, conforme instruído): o caminho de sucesso completo (token válido → sessão criada → `/dashboard`). Só pode ser validado com um teste manual real, depois do deploy e da configuração do template (abaixo).
+
+### Ação manual necessária no painel do Supabase (não realizada nesta tarefa)
+
+**Onde**: Supabase Dashboard → Authentication → Email Templates → **Magic Link**.
+
+**Correção registrada nesta microtarefa**: o template deve usar `{{ .RedirectTo }}`, não `{{ .SiteURL }}`. `app/login/page.tsx` já fornece `emailRedirectTo` explicitamente em `signInWithOtp({ email, options: { emailRedirectTo: \`${NEXT_PUBLIC_APP_URL}/auth/confirm\` } })` — e é exatamente esse valor, por requisição, que `{{ .RedirectTo }}` resolve no template, ao contrário de `{{ .SiteURL }}`, que é um único valor global fixo no projeto. Usar `{{ .RedirectTo }}` preserva corretamente tanto produção quanto `localhost`, sem a limitação registrada anteriormente.
+
+**O que configurar**: o corpo do template deve conter um link apontando para:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">
+  Entrar na SUZZY AI
+</a>
+```
+
+Confirmado na documentação oficial atual da Supabase (`supabase.com/docs/guides/auth/auth-email-templates`):
+- `{{ .RedirectTo }}` — *"Contains the redirect URL passed when `signUp`, `signInWithOtp`, `signInWithOAuth`, `resetPasswordForEmail` or `inviteUserByEmail` is called."* — confirma exatamente que corresponde ao `emailRedirectTo` fornecido pela aplicação em `signInWithOtp`, já apontando para `/auth/confirm` (produção ou `localhost`, conforme de onde o login foi solicitado).
+- `{{ .TokenHash }}` — *"Contains a hashed version of the `{{ .Token }}`. This is useful for constructing your own email link in the email template."* — placeholder correto para o fluxo `verifyOtp` já implementado em `app/auth/confirm/route.ts`.
+- A própria documentação confirma que a URL de redirecionamento usada precisa estar na allow list: *"The redirect URL allow list can be configured in your project's authentication settings."*
+
+`type=email` continua sendo um valor fixo no link (não um placeholder), correspondendo ao único tipo aceito pela rota (`ALLOWED_OTP_TYPES` em `app/auth/confirm/route.ts`).
+
+**Sobre localhost vs. produção — corrigido**: como `{{ .RedirectTo }}` reflete o `emailRedirectTo` enviado a cada chamada (não um valor único fixo do projeto), um Magic Link solicitado a partir do `localhost:3000` gera um link para `http://localhost:3000/auth/confirm`, e um solicitado a partir de `https://suzzy-ai.vercel.app` gera um link para essa mesma origem — **os dois ambientes ficam corretamente preservados com um único template**, sem a limitação registrada anteriormente (que presumia o uso de `{{ .SiteURL }}`, um valor global único). Nenhuma solução alternativa (ex.: projeto Supabase separado) é necessária.
+
+### Redirect URLs a adicionar/confirmar no Supabase
+
+Como `{{ .RedirectTo }}` pode resolver tanto para produção quanto para `localhost`, **ambas as URLs precisam estar presentes** na allow list (Authentication → URL Configuration → Redirect URLs), pelo mesmo motivo já diagnosticado na correção do OAuth: se a URL usada não estiver na allow list, a Supabase cai no fallback (Site URL), reproduzindo o mesmo tipo de bug já corrigido, agora nesta rota:
+
+- `https://suzzy-ai.vercel.app/auth/confirm`
+- `http://localhost:3000/auth/confirm`
+
+### Passos de deploy e teste recomendados (não executados)
+
+1. Revisar e aprovar este diff (`app/auth/confirm/route.ts`, `app/login/page.tsx`).
+2. Deploy para Production na Vercel.
+3. No painel do Supabase: atualizar o template de Magic Link (acima) e adicionar `https://suzzy-ai.vercel.app/auth/confirm` (e, opcionalmente, a versão `localhost`) às Redirect URLs.
+4. Teste manual real: solicitar Magic Link em produção → abrir o e-mail → clicar no link → confirmar chegada em `/dashboard` autenticado.
+5. Reconfirmar que o Google OAuth continua funcionando após o deploy (checagem rápida, já que nada nele foi alterado, mas todo deploy novo merece essa confirmação).
+
+---
+
 ## Status
 
 Tarefa 1 concluída em 2026-08-10. Aguardando aprovação para a Tarefa 2.
