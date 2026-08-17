@@ -43,9 +43,12 @@ Esta seção se aplica à geração principal da plataforma e também aos dois a
 O acesso à SUZZY AI é feito por meio dos mecanismos de autenticação disponíveis na plataforma. O usuário é responsável por:
 - manter a confidencialidade e a segurança do acesso à sua conta;
 - fornecer informações legítimas, quando aplicável, ao utilizar os mecanismos de autenticação disponíveis;
+- a veracidade e a exatidão dos dados informados no cadastro de perfil, incluindo o número do CRECI — que é autodeclarado e não verificado pela plataforma (ver seção 4);
 - todas as atividades realizadas em sua conta.
 
 A SUZZY AI não utiliza uma senha própria armazenada pela aplicação — o acesso é intermediado pelos mecanismos de autenticação descritos na Política de Privacidade. O procedimento de exclusão de conta ainda não está implementado nesta versão da plataforma; quando definido, este documento e a Política de Privacidade serão atualizados. Condições adicionais sobre conta e acesso: **[A CONFIRMAR ANTES DO LANÇAMENTO]**.
+
+No primeiro acesso, o usuário precisa completar um cadastro de perfil (nome completo, CRECI e UF do CRECI, cidade e estado de atuação, tipo de atuação e, opcionalmente, telefone/WhatsApp) antes de utilizar o Dashboard e a geração de respostas. **O número do CRECI informado é autodeclarado pelo próprio usuário** — a SUZZY AI não verifica, confirma ou garante, perante o órgão regulador ou qualquer terceiro, que o CRECI informado é válido, ativo ou pertence de fato ao usuário; a responsabilidade pela veracidade dessa informação é exclusivamente do usuário (ver seção 5). Mais detalhes sobre os dados desse cadastro estão na [Política de Privacidade](./PRIVACY_POLICY.md).
 
 ## 5. Responsabilidades do usuário
 

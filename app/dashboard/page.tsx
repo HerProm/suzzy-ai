@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasCompleteProfile } from "@/lib/supabase/profile";
 import { DashboardForm } from "@/components/dashboard-form";
 import { SuzzySupportChat } from "@/components/suzzy-support-chat";
 
@@ -9,6 +10,11 @@ export default async function DashboardPage() {
 
   if (!data?.claims) {
     redirect("/login");
+  }
+
+  const complete = await hasCompleteProfile(supabase, data.claims.sub);
+  if (!complete) {
+    redirect("/cadastro");
   }
 
   return (

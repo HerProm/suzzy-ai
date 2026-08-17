@@ -118,6 +118,11 @@ export default function TermsOfUsePage() {
             fornecer informações legítimas, quando aplicável, ao utilizar os
             mecanismos de autenticação disponíveis;
           </li>
+          <li>
+            a veracidade e a exatidão dos dados informados no cadastro de
+            perfil, incluindo o número do CRECI — que é autodeclarado e não
+            verificado pela plataforma;
+          </li>
           <li>todas as atividades realizadas em sua conta.</li>
         </ul>
         <p className={LEGAL_P}>
@@ -127,6 +132,20 @@ export default function TermsOfUsePage() {
           de exclusão de conta ainda não está implementado nesta versão da
           plataforma; quando definido, este documento e a Política de
           Privacidade serão atualizados.
+        </p>
+        <p className={LEGAL_P}>
+          No primeiro acesso, o usuário precisa completar um cadastro de
+          perfil (nome completo, CRECI e UF do CRECI, cidade e estado de
+          atuação, tipo de atuação e, opcionalmente, telefone/WhatsApp)
+          antes de utilizar o Dashboard e a geração de respostas.{" "}
+          <strong>
+            O número do CRECI informado é autodeclarado pelo próprio
+            usuário
+          </strong>{" "}
+          — a SUZZY AI não verifica, confirma ou garante, perante o órgão
+          regulador ou qualquer terceiro, que o CRECI informado é válido,
+          ativo ou pertence de fato ao usuário; a responsabilidade pela
+          veracidade dessa informação é exclusivamente do usuário.
         </p>
       </section>
 

@@ -55,10 +55,26 @@ Para controlar o uso e prevenir abuso (por exemplo, um grande volume de mensagen
 
 Esses identificadores são usados exclusivamente para aplicar os limites técnicos de uso descritos acima, nunca são enviados ao fornecedor de inteligência artificial (ver seção 6) e nunca são associados ao conteúdo das conversas ou das solicitações de geração. Mais detalhes sobre o fornecedor técnico responsável por esse mecanismo estão na seção 6.
 
+### F) Dados de perfil do corretor (cadastro)
+
+A partir da Sprint 19, o primeiro acesso à plataforma exige a conclusão de um cadastro de perfil, guardado em uma tabela própria da aplicação (`profiles`) associada ao mesmo identificador da conta de autenticação — sem duplicar o e-mail, que continua vivendo apenas nos dados de autenticação (seção 3-A). Podem ser tratados:
+- nome completo (obrigatório);
+- número do CRECI e UF do CRECI (obrigatórios) — **informados pelo próprio usuário, sem qualquer verificação automática contra o CRECI ou outro órgão regulador nesta versão da plataforma**; a SUZZY AI não afirma, em nenhum momento, que um CRECI exibido é válido, ativo ou foi conferido;
+- cidade e estado de atuação (obrigatórios);
+- tipo de atuação — corretor autônomo ou imobiliária (obrigatório);
+- telefone/WhatsApp (**opcional**);
+- registro de aceite dos Termos de Uso e da Política de Privacidade, com data/hora e a versão do documento aceita naquele momento;
+- consentimento para receber comunicações de marketing (**opcional, desmarcado por padrão, e apresentado separadamente do aceite dos Termos e da Política** — nunca é uma condição para usar a plataforma).
+
+**Não coletamos o CPF do usuário nesta versão da plataforma** — essa decisão segue o princípio de minimização de dados da LGPD: não há, hoje, uma finalidade concreta que justifique coletar esse dado.
+
+Enquanto o cadastro não for concluído, o acesso ao Dashboard e à geração de respostas fica bloqueado (ver seção 4).
+
 ## 4. Finalidades
 
 Os dados tratados pela SUZZY AI têm as seguintes finalidades, compatíveis com o funcionamento atual do sistema:
 - autenticar o usuário e permitir o acesso à plataforma;
+- completar e manter o cadastro de perfil do corretor (seção 3-F), exigido antes do acesso ao Dashboard e à geração de respostas;
 - processar as solicitações de geração enviadas pelo usuário;
 - produzir respostas e recomendações por meio de inteligência artificial;
 - manter o histórico de gerações localmente no navegador do usuário, para sua própria conveniência;
@@ -80,7 +96,7 @@ Esta seção representa um enquadramento preliminar e prudente, não uma conclus
 ## 6. Fornecedores e terceiros
 
 Para funcionar, a SUZZY AI utiliza os seguintes fornecedores tecnológicos, identificados na auditoria técnica do projeto:
-- **Supabase** — utilizado para autenticação (login, manutenção de sessão e logout);
+- **Supabase** — utilizado para autenticação (login, manutenção de sessão e logout) e, a partir da Sprint 19, para armazenar os dados de perfil do corretor (seção 3-F) em uma tabela própria da aplicação, protegida por Row Level Security (RLS): cada usuário só consegue ler ou alterar sua própria linha de perfil, tanto pela aplicação quanto por qualquer acesso direto ao banco feito com as credenciais do próprio usuário;
 - **Google** — utilizado apenas quando o usuário escolhe fazer login com sua conta Google, conforme as permissões concedidas por ele naquele momento;
 - **OpenAI** — utilizado para o processamento das solicitações de inteligência artificial em três fluxos da plataforma: (1) a geração principal (contexto informado pelo usuário, tarefa, e, quando aplicável, cenário/objeção/estratégia selecionados); (2) a Suzzy Assist (mensagens do chat público e o histórico recente da própria conversa); (3) a Suzzy Support (mensagens do chat autenticado e o histórico recente da própria conversa — ver seção 3-E). Os identificadores usados para rate limiting (IP com hash, identificador de conta) **não** são enviados a esse fornecedor.
 - **Upstash** — utilizado como infraestrutura de controle de limite de uso (rate limiting) da geração principal, da Suzzy Assist e da Suzzy Support, por meio de um banco de dados Redis gerenciado por esse fornecedor. Trata apenas os identificadores descritos na seção 3-E e um contador numérico de uso — nunca o conteúdo do contexto informado, das respostas geradas ou das mensagens trocadas nos chats. O banco utilizado está configurado, na infraestrutura atual, na região de São Paulo, Brasil; essa informação é registrada aqui como dado técnico operacional, e não deve ser interpretada, por si só, como conclusão jurídica sobre residência ou transferência internacional de dados — ver seção 13.
@@ -102,6 +118,7 @@ Não utilizamos cookies de publicidade, rastreamento ou analytics — nenhum foi
 Sobre o tempo de retenção dos dados tratados pela plataforma:
 - o histórico local de gerações permanece no dispositivo/navegador do usuário até que seja removido por ele, conforme os mecanismos disponíveis no próprio navegador (ex.: limpeza de dados de navegação) ou, futuramente, por um mecanismo próprio da plataforma;
 - as conversas com a Suzzy Assist e a Suzzy Support (seção 3-E) não são retidas pela aplicação — existem apenas enquanto a página/aba estiver aberta;
+- os dados de perfil do corretor (seção 3-F) permanecem armazenados enquanto a conta existir; não há, nesta versão, exclusão automática por tempo nem um mecanismo de autoatendimento para apagá-los (ver seção 9);
 - os identificadores usados para rate limiting da geração principal, da Suzzy Assist e da Suzzy Support (seção 3-E) ficam armazenados no Upstash apenas pelo tempo técnico da própria janela de limite (contadores da janela curta expiram em cerca de 1 minuto; contadores diários expiram em cerca de 1 dia) — não configuramos retenção além do necessário para aplicar o limite;
 - os dados processados pelos fornecedores externos (Supabase, Google, OpenAI, Upstash) estão sujeitos às práticas e configurações de retenção aplicáveis a cada um desses fornecedores, que não são definidas por este documento;
 - períodos específicos de retenção da sessão de autenticação e de eventuais dados tratados pelos fornecedores ainda precisam ser confirmados.
@@ -120,7 +137,7 @@ Nos termos da LGPD, quando aplicáveis, o titular dos dados pode exercer os segu
 - revogação do consentimento, quando essa for a base legal utilizada para o tratamento;
 - demais direitos previstos na legislação aplicável.
 
-Não existe, na versão atual da plataforma, um botão ou funcionalidade de autoatendimento para exclusão de conta — essa funcionalidade ainda não foi implementada. O canal para exercício dos direitos descritos nesta seção será: **[A CONFIRMAR ANTES DO LANÇAMENTO]**.
+Não existe, na versão atual da plataforma, um botão ou funcionalidade de autoatendimento para exclusão de conta ou do cadastro de perfil (seção 3-F) — essa funcionalidade ainda não foi implementada; uma solicitação de exclusão, quando o canal de contato estiver definido, precisará ser tratada manualmente. O canal para exercício dos direitos descritos nesta seção será: **[A CONFIRMAR ANTES DO LANÇAMENTO]**.
 
 ## 10. Responsabilidade do usuário
 

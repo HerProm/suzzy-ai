@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { hasCompleteProfile } from "@/lib/supabase/profile";
 import { createOpenAiClient } from "@/lib/ai/client";
 import { SUZZY_SUPPORT_KNOWLEDGE } from "@/lib/agents/support-knowledge";
 import { getSupportRateLimiters, checkRateLimit } from "@/lib/rate-limit";
@@ -155,6 +156,18 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Sessão não encontrada. Faça login novamente." },
       { status: 401 },
+    );
+  }
+
+  // Perfil completo é exigido antes até de consultar o Upstash: quem ainda
+  // não completou o cadastro não deveria estar chamando esta rota (a UI já
+  // redireciona para /cadastro), mas uma chamada direta também é bloqueada
+  // aqui. Mesmo helper fail-closed usado no Dashboard (Sprint 19).
+  const hasProfile = await hasCompleteProfile(supabase, data.claims.sub);
+  if (!hasProfile) {
+    return NextResponse.json(
+      { error: "Complete seu cadastro antes de continuar." },
+      { status: 403 },
     );
   }
 

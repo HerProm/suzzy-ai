@@ -161,6 +161,53 @@ export default function PrivacyPolicyPage() {
             conteúdo das conversas ou das solicitações de geração.
           </p>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <h3 className="font-medium text-slate-900">
+            Dados de perfil do corretor (cadastro)
+          </h3>
+          <p className={LEGAL_P}>
+            O primeiro acesso à plataforma exige a conclusão de um cadastro
+            de perfil, guardado em uma tabela própria da aplicação
+            associada ao mesmo identificador da conta de autenticação — sem
+            duplicar o e-mail. Podem ser tratados:
+          </p>
+          <ul className={LEGAL_UL}>
+            <li>nome completo (obrigatório);</li>
+            <li>
+              número do CRECI e UF do CRECI (obrigatórios) —{" "}
+              <strong>
+                informados pelo próprio usuário, sem qualquer verificação
+                automática contra o CRECI ou outro órgão regulador
+              </strong>{" "}
+              nesta versão da plataforma. Não afirmamos, em nenhum momento,
+              que um CRECI exibido é válido, ativo ou foi conferido;
+            </li>
+            <li>cidade e estado de atuação (obrigatórios);</li>
+            <li>
+              tipo de atuação — corretor autônomo ou imobiliária
+              (obrigatório);
+            </li>
+            <li>telefone/WhatsApp (opcional);</li>
+            <li>
+              registro de aceite dos Termos de Uso e da Política de
+              Privacidade, com data/hora e a versão do documento aceita
+              naquele momento;
+            </li>
+            <li>
+              consentimento para receber comunicações de marketing
+              (opcional, desmarcado por padrão e apresentado separadamente
+              do aceite dos Termos e da Política — nunca é uma condição
+              para usar a plataforma).
+            </li>
+          </ul>
+          <p className={LEGAL_P}>
+            Não coletamos o CPF do usuário nesta versão da plataforma — não
+            há, hoje, uma finalidade concreta que justifique coletar esse
+            dado. Enquanto o cadastro não for concluído, o acesso ao
+            Dashboard e à geração de respostas fica bloqueado.
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -171,6 +218,10 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className={LEGAL_UL}>
           <li>autenticar o usuário e permitir o acesso à plataforma;</li>
+          <li>
+            completar e manter o cadastro de perfil do corretor, exigido
+            antes do acesso ao Dashboard e à geração de respostas;
+          </li>
           <li>processar as solicitações de geração enviadas pelo usuário;</li>
           <li>
             produzir respostas e recomendações por meio de inteligência
@@ -232,7 +283,10 @@ export default function PrivacyPolicyPage() {
         <ul className={LEGAL_UL}>
           <li>
             <strong>Supabase</strong> — utilizado para autenticação (login,
-            manutenção de sessão e logout);
+            manutenção de sessão e logout) e para armazenar os dados de
+            perfil do corretor em uma tabela própria da aplicação,
+            protegida por Row Level Security (RLS): cada usuário só
+            consegue ler ou alterar sua própria linha de perfil;
           </li>
           <li>
             <strong>Google</strong> — utilizado apenas quando o usuário
@@ -323,6 +377,11 @@ export default function PrivacyPolicyPage() {
             estiver aberta;
           </li>
           <li>
+            os dados de perfil do corretor permanecem armazenados enquanto
+            a conta existir; não há, nesta versão, exclusão automática por
+            tempo nem um mecanismo de autoatendimento para apagá-los;
+          </li>
+          <li>
             os identificadores usados para rate limiting da geração
             principal, da Suzzy Assist e da Suzzy Support ficam armazenados
             no Upstash apenas pelo tempo técnico da própria janela de limite
@@ -378,7 +437,9 @@ export default function PrivacyPolicyPage() {
         </ul>
         <p className={LEGAL_P}>
           Não existe, na versão atual da plataforma, um botão ou
-          funcionalidade de autoatendimento para exclusão de conta.
+          funcionalidade de autoatendimento para exclusão de conta ou do
+          cadastro de perfil — uma solicitação de exclusão precisará ser
+          tratada manualmente, quando o canal de contato estiver definido.
         </p>
       </section>
 

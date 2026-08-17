@@ -509,6 +509,208 @@ Como `{{ .RedirectTo }}` pode resolver tanto para produção quanto para `localh
 
 ---
 
+## Auditoria — Cadastro/Perfil do Corretor (planejamento, nada implementado)
+
+Nova decisão de produto: Magic Link deixa de ser prioridade; Google é o método de login desta fase; será criado um cadastro/perfil pós-login. **Esta seção é 100% planejamento** — nenhuma tabela criada, nenhuma migration executada, nenhum código alterado, nenhuma configuração do Supabase alterada, Magic Link não removido, Google OAuth não tocado.
+
+### 1. O que o Supabase Auth já armazena hoje ao entrar com Google
+
+Confirmado por auditoria de código e dos tipos instalados (`@supabase/auth-js`), não presumido: o único dado que a aplicação **lê** hoje é `data.claims.sub` (confirmado por busca em todo o projeto — nenhuma outra claim é lida em nenhum arquivo). O `sub` é a única claim garantida (`RequiredClaims`); `email` é tipada como **opcional** (`email?: string`) — presente na prática para login Google (o escopo de e-mail é padrão), mas não uma garantia do sistema de tipos. O Supabase Auth também pode reter, do lado dele (não lido pela aplicação hoje), `user_metadata`/`app_metadata` com o que o Google disponibilizar conforme as permissões concedidas pelo usuário (tipicamente nome e foto de perfil) — isso já está registrado, de forma propositalmente cautelosa, na Política de Privacidade atual (seção 3-A: "não afirmamos que dados como nome ou foto de perfil sejam sempre coletados").
+
+**Resumo**: hoje, a aplicação só usa `sub` (identificador estável da conta). Tudo o mais que o Supabase possa reter do Google fica do lado da própria Supabase, não é lido nem exibido por nenhum código deste projeto.
+
+### 2. Existe tabela própria de usuários/perfis?
+
+**Não.** Reconfirmado nesta auditoria por busca exaustiva: zero ocorrências de `supabase.from(...)` ou `.storage.` em todo o código; **não existe pasta `supabase/` no projeto** (nenhum CLI do Supabase inicializado localmente, nenhuma migration versionada). O Supabase é usado exclusivamente para autenticação, exatamente como documentado desde a Sprint 15. **Criar a tabela de perfil seria a primeira tabela de aplicação deste projeto** — uma mudança estrutural relevante, não incremental, e é por isso que os itens 10–11 abaixo (implicações jurídicas) importam tanto quanto o desenho técnico.
+
+### 3. Estrutura mínima recomendada
+
+Um único novo objeto — `public.profiles` — com relação 1:1 com `auth.users`, usando o próprio `id` (o `sub` da autenticação) como chave primária e estrangeira, sem inventar um novo identificador. Esboço (não executado):
+
+```sql
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null,
+  phone text not null,
+  creci_number text not null,
+  creci_uf text not null,
+  city text not null,
+  state text not null,
+  professional_type text not null check (professional_type in ('autonomo', 'imobiliaria')),
+  terms_accepted_at timestamptz not null,
+  terms_version text not null,
+  privacy_accepted_at timestamptz not null,
+  privacy_version text not null,
+  marketing_consent boolean not null default false,
+  marketing_consent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+-- políticas: usuário só lê/cria/atualiza a própria linha (auth.uid() = id)
+```
+
+**Decisões de desenho já embutidas, para justificar**:
+- **`id` = `auth.users.id`** (não um ID novo): evita duplicar identificador, mantém a mesma relação 1:1 já usada para `sub` em todo o resto do sistema (rate limiting, etc.).
+- **E-mail não duplicado na tabela**: já vive em `auth.users`/na claim `email`; duplicá-lo criaria risco de dessincronia (ex.: usuário troca e-mail no provedor) sem necessidade real, já que qualquer consulta autenticada já tem acesso ao `sub` e, via `getClaims()`, ao e-mail atual.
+- **`terms_version`/`privacy_version`**: registrar não só *que* o usuário aceitou, mas *qual versão* dos documentos — boa prática de conformidade (permite provar o que foi aceito, mesmo que os documentos mudem depois). Pequeno acréscimo ao pedido original, mas diretamente relevante para o item 10 (implicações jurídicas), por isso incluído na proposta.
+- **RLS obrigatório**: cada usuário só pode ler/escrever a própria linha — sem isso, qualquer usuário autenticado poderia ler dados de perfil de outro.
+
+Isso permanece deliberadamente pequeno — uma tabela, sem tabelas relacionadas, sem histórico de alterações, sem CRM de leads/imóveis (fora do escopo do MVP, conforme `CLAUDE.md`).
+
+### 4. Avaliação campo a campo
+
+| Campo | Recomendação | Observação |
+|---|---|---|
+| Nome completo | **Obrigatório** | Necessário para identificar o profissional; já não é coletado hoje. |
+| E-mail | **Não duplicar na tabela** | Já disponível via `auth.users`/claim `email` — ver item 3. |
+| Telefone/WhatsApp | **Obrigatório** | Canal de contato relevante para o produto (corretores usam WhatsApp no dia a dia); ainda assim, dado pessoal — deve ser tratado com a mesma prudência já aplicada a outros dados (nunca enviado à OpenAI, nunca exposto em log). |
+| CRECI (número) | **Obrigatório, autodeclarado** | Ver item 6 — sem verificação externa. |
+| UF do CRECI | **Obrigatório** | O registro de corretor é estadual no Brasil (conselhos regionais); sem a UF, o número sozinho não identifica o registro de forma inequívoca. |
+| Cidade/estado de atuação | **Obrigatório** | Relevante para o produto (contexto do mercado imobiliário local), campo simples, baixo risco. |
+| Autônomo ou imobiliária | **Obrigatório** | Já existe distinção equivalente nos planos da Landing Page ("Corretor Autônomo" vs. "Pequena Imobiliária") — reaproveita um conceito já existente no produto, não cria um novo. |
+| Aceite dos Termos de Uso | **Obrigatório** | Hoje o acesso à plataforma não registra aceite explícito algum — esta seria a primeira vez. Deve gravar data/hora e versão do documento (ver item 3). |
+| Aceite da Política de Privacidade | **Obrigatório** | Mesma lógica do item anterior. |
+| Consentimento de marketing | **Opcional, separado** | Ver item 7 — nunca pode ser pré-marcado nem obrigatório para concluir o cadastro. |
+
+### 5. CPF — recomendação: **não coletar nesta fase**
+
+Não há finalidade concreta hoje que justifique CPF: não existe cobrança, não existe emissão de nota fiscal, não existe processo de KYC. Coletar um dado pessoal sem finalidade específica e informada viola o princípio de **necessidade/minimização** da LGPD (art. 6º, III) — o dado mais seguro é o que nunca foi coletado. **Recomendação**: registrar CPF como pendência condicionada — só voltar a considerar quando houver uma finalidade concreta e determinada (ex.: emissão de nota fiscal ao implementar cobrança real), e, quando isso acontecer, tratá-lo com a base legal apropriada para aquele momento (provavelmente execução de contrato/obrigação legal fiscal), não antecipadamente.
+
+### 6. CRECI — estratégia recomendada
+
+- Armazenar **apenas o que o usuário informar** (número + UF), como texto simples autodeclarado.
+- **Nunca afirmar, em nenhum lugar da interface ou dos documentos, que o CRECI foi verificado, validado ou está ativo** — isso seria uma alegação factual não comprovada, exatamente o tipo de afirmação que este projeto tem evitado sistematicamente desde a Sprint 15.
+- **Não implementar verificação automática externa nesta fase**: não encontrei, nesta auditoria, confirmação de uma API pública/oficial unificada dos conselhos regionais de corretores (CRECI é regulado por conselho estadual, via COFECI/CRECI-UF, sem uma API nacional unificada e amplamente documentada) — implementar uma integração sem essa fonte confirmada seria inventar uma capacidade que não existe, o oposto do padrão de rigor já mantido no projeto. Se uma fonte oficial/integrável for confirmada no futuro, isso seria uma tarefa própria, com sua própria auditoria.
+
+### 7. Consentimento de marketing — separado do uso da conta
+
+O consentimento de marketing **nunca pode ser condição** para criar a conta ou usar o produto — LGPD exige que consentimento para comunicações promocionais seja **livre, específico e inequívoco**, nunca embutido em um aceite genérico de Termos/Privacidade (que são, esses sim, condição de uso). Na estrutura proposta (item 3), isso já aparece como `marketing_consent boolean not null default false` — **desmarcado por padrão**, nunca pré-selecionado, com seu próprio timestamp (`marketing_consent_at`) separado dos timestamps de aceite dos documentos legais. O formulário de cadastro (quando implementado) precisa apresentar isso como um checkbox visualmente distinto dos aceites obrigatórios, não como mais um item da mesma lista.
+
+### 8. Como impedir acesso ao `/dashboard` sem cadastro completo
+
+**Precisa ser reforçado no servidor, em mais de um ponto** — não basta um redirecionamento na página do Dashboard, pelo mesmo motivo pelo qual o rate limiting não pôde depender só da interface (Sprint 17/18): qualquer verificação só no cliente pode ser contornada.
+
+Pontos que precisariam da mesma checagem (perfil existe? senão, redireciona/bloqueia):
+- `app/dashboard/page.tsx` (Server Component, já faz `getClaims()` — extenderia para também checar a existência da linha em `profiles`, redirecionando para `/cadastro` em vez de renderizar o formulário).
+- `app/api/generate/route.ts` e `app/api/support/route.ts` — **hoje só checam autenticação, não checam perfil completo**. Se o gate ficasse só no Dashboard, um usuário autenticado sem perfil ainda poderia chamar essas rotas diretamente (mesmo tipo de risco já tratado com cuidado em toda a Sprint 17/18 para rate limiting). Precisariam da mesma checagem, ou uma decisão consciente de que essas rotas continuam acessíveis mesmo sem perfil completo (não recomendado, mas é uma decisão de produto, não técnica).
+- `app/auth/callback/route.ts` **não precisaria mudar** — pode continuar redirecionando sempre para `/dashboard`; é o próprio `/dashboard` (ou um middleware) que decidiria se deixa passar ou redireciona para `/cadastro`. Isso mantém o Google OAuth, já validado, intocado.
+
+**Opção de otimização futura, não necessária no MVP**: gravar um custom claim (`profile_completed: true`) no JWT via Auth Hook do Supabase após o cadastro ser concluído, evitando uma consulta ao banco em toda requisição protegida. Registrado como possível melhoria futura (P2), não como parte da implementação mínima — o caminho mais simples (consulta direta a `profiles` nos pontos acima) já resolve o problema, e este projeto tem preferido consistentemente a solução mais simples que funcione (`CLAUDE.md`).
+
+### 9. Usuários que já existem hoje
+
+**Nenhum tratamento especial ou migração é necessária** — a própria checagem "existe uma linha em `profiles` para este `id`?" já resolve isso de forma uniforme: uma conta Google já autenticada anteriormente (inclusive contas de teste já usadas nesta sprint) simplesmente não teria linha em `profiles` ainda, e cairia no mesmo fluxo de "primeiro acesso" descrito no objetivo — sem distinguir, em código, entre "conta nova" e "conta antiga sem perfil". Mais simples e mais correto do que qualquer script de backfill.
+
+### 10. Implicações nos documentos jurídicos
+
+Esta é a mudança mais significativa desde a criação dos documentos jurídicos na Sprint 15 — pela primeira vez, **haveria dados de aplicação persistidos em um banco de dados real**, algo que a Política de Privacidade e os Termos de Uso afirmam hoje, repetidamente e com evidência de código, que **não existe** ("não existe banco de dados de aplicação em uso", Sprint 15/17/18). Quando esta funcionalidade for implementada (não nesta tarefa), os documentos precisarão de atualização real, não cosmética:
+
+- **Política de Privacidade**: nova subseção descrevendo os dados de perfil coletados (nome, telefone, CRECI+UF, cidade/estado, tipo de atuação), a finalidade de cada um, a base legal (provavelmente execução de contrato, já que são necessários para usar o produto), e o fato de que, pela primeira vez, existe uma tabela de aplicação com dados pessoais persistidos no Supabase (Postgres) — não mais "tudo local ao navegador ou efêmero". CRECI precisa ser descrito explicitamente como autodeclarado, não verificado.
+- **Termos de Uso**: passaria a exigir aceite explícito e registrado (não apenas "ao usar, você concorda") — o próprio ato de completar o cadastro se torna o momento do aceite, o que é uma mudança de mecanismo, não só de texto.
+- **Transparência sobre dados armazenados**: a seção de retenção precisaria cobrir a nova tabela (por quanto tempo os dados de perfil ficam retidos, o que acontece com eles se a conta for encerrada).
+- **Exclusão de conta/dados**: hoje a ausência de autoatendimento para exclusão é justificada, em parte, por não existir dado de aplicação para excluir. Com uma tabela real de perfil, essa lacuna passa a ter peso concreto — não seria obrigatório implementar autoatendimento imediatamente, mas a pendência deixaria de ser abstrata e precisaria de um processo claro (mesmo que manual) para exclusão de perfil mediante solicitação.
+- **Consentimento de marketing**: precisaria de uma menção própria na Política de Privacidade, deixando claro que é opcional, revogável, e desvinculado do uso do produto.
+
+**Nenhum documento foi alterado nesta tarefa** — apenas mapeado o que precisará mudar quando a funcionalidade for implementada.
+
+### 11. Arquivos/tabelas que precisariam ser criados ou alterados (futuramente, não agora)
+
+- **Nova migration Supabase**: `public.profiles` + políticas de RLS (item 3).
+- **Nova página**: `app/cadastro/page.tsx` (ou `/onboarding`) — formulário de perfil.
+- **Novo componente**: formulário client-side para os campos do item 4.
+- **Nova rota/Server Action**: para validar e gravar o perfil (leitura de `sub` via `getClaims()`, nunca confiar em um ID vindo do formulário).
+- **`app/dashboard/page.tsx`**: estender a checagem existente para incluir perfil completo.
+- **`app/api/generate/route.ts`/`app/api/support/route.ts`**: decisão pendente sobre se também precisam da checagem (item 8).
+- **`docs/PRIVACY_POLICY.md`, `docs/TERMS_OF_USE.md`** e as páginas públicas correspondentes (item 10).
+- **Nenhuma alteração necessária** em `/auth/callback`, Google OAuth, `proxy.ts`, `/api/assist` (pública, sem perfil de usuário aplicável).
+
+### Riscos encontrados
+
+- **RLS mal configurado** exporia dados de perfil de um usuário para outro — obrigatório testar isolamento antes de qualquer uso real.
+- **Checagem só no cliente/só na página do Dashboard** permitiria contornar o cadastro chamando `/api/generate`/`/api/support` diretamente — precisa de decisão explícita (item 8).
+- **CRECI apresentado de forma que pareça verificado**, mesmo sem intenção — risco de comunicação/UX, não só de dados; precisa de atenção no texto da interface, não só nos documentos.
+- **Consentimento de marketing pré-marcado ou obrigatório**, mesmo que por engano de implementação — violaria a exigência de consentimento específico da LGPD.
+- **Fricção de ativação**: exigir cadastro completo antes do Dashboard é uma escolha de produto que pode reduzir conversão de novos usuários — não é um risco técnico, é um trade-off de produto que o proprietário deve assumir conscientemente.
+- **Mudança estrutural na narrativa de privacidade**: os documentos jurídicos atuais afirmam ativamente a ausência de banco de dados de aplicação; implementar isso sem atualizar os documentos criaria uma inconsistência factual real entre o que é dito e o que o sistema faz — exatamente o tipo de problema que outras tarefas desta sprint já trataram como prioridade alta.
+
+### Sequência recomendada de implementação (proposta, não iniciada)
+
+1. Migration da tabela `profiles` + RLS (com teste de isolamento entre contas).
+2. Página `/cadastro` + formulário + rota/Server Action de gravação.
+3. Gate de perfil completo em `app/dashboard/page.tsx` (e decisão consciente sobre `/api/generate`/`/api/support`).
+4. Atualização da Política de Privacidade e dos Termos de Uso (documentos-base primeiro, depois páginas públicas) refletindo a nova coleta e persistência de dados.
+5. Teste end-to-end: conta nova → cadastro obrigatório → Dashboard; conta já existente sem perfil → mesmo fluxo de cadastro no próximo login; conta com perfil completo → acesso direto ao Dashboard.
+6. Decisão e, se aprovada, implementação de um processo (mesmo que manual) de exclusão de perfil mediante solicitação.
+
+---
+
+## Implementação — Perfil do Corretor (Sprint 19)
+
+*Implementado em 2026-08-15, com base na auditoria acima (aprovada pelo proprietário). Migration criada no repositório, mas **não aplicada** no Supabase remoto; **nenhum deploy foi realizado** — ambos aguardam aprovação explícita, conforme instrução recebida.*
+
+### O que foi implementado
+
+**1. Tabela `public.profiles`** — `supabase/migrations/20260815000000_create_profiles.sql`:
+- `id uuid primary key references auth.users(id) on delete cascade` — sem duplicar e-mail;
+- `full_name`, `creci_number`, `creci_uf`, `city`, `state`, `professional_type` (`not null`, com `check` restringindo a `'autonomo'`/`'imobiliaria'`);
+- `phone` (`text`, **nullable** — conforme instrução explícita desta tarefa, que substitui a recomendação "obrigatório" da auditoria anterior);
+- `marketing_consent boolean not null default false` + `marketing_consent_at` (nulo se não houver consentimento);
+- `terms_accepted_at`/`terms_version` e `privacy_accepted_at`/`privacy_version` (`not null`) — registram data/hora e a versão exata do documento aceito;
+- `created_at`/`updated_at timestamptz not null default now()`;
+- **CPF não é coletado** — nenhum campo relacionado existe na tabela;
+- comentário na tabela (`comment on table`) documentando que o CRECI é autodeclarado, sem verificação automática.
+
+**2. RLS** — habilitado (`alter table ... enable row level security`), com três políticas, todas restritas ao papel `authenticated` e à condição `auth.uid() = id`:
+- `profiles_select_own` (SELECT);
+- `profiles_insert_own` (INSERT, com `with check` — impede que alguém grave um perfil com `id` de outra pessoa);
+- `profiles_update_own` (UPDATE).
+- **Nenhuma política de DELETE** foi criada, de propósito — o processo de exclusão ainda não está definido (item 10 da auditoria); o `on delete cascade` do FK cobre a remoção em cascata caso a conta seja excluída por outro meio.
+- Nenhuma role de serviço (`service_role`) é usada em nenhum ponto do código novo — toda leitura/escrita passa pelo cliente Supabase autenticado do próprio usuário (`lib/supabase/server.ts`), que já respeita RLS.
+
+**3. Helper reutilizável** — `lib/supabase/profile.ts`, função `hasCompleteProfile(supabase, userId)`: consulta `profiles` filtrando por `id`, retorna `true`/`false` conforme a linha existir. **Fail-closed**: qualquer erro na consulta é tratado como perfil incompleto (mesmo padrão já usado no rate limiting).
+
+**4. Rota de gravação** — `app/api/profile/route.ts` (POST): exige sessão (`getClaims()`, 401 se ausente); valida todos os campos obrigatórios (incluindo `termsAccepted`/`privacyAccepted` estritamente `true`); telefone tratado como opcional (string vazia/ausente vira `null`); grava via `upsert` com o `id` sempre igual a `data.claims.sub` (nunca aceito do corpo da requisição); gera `terms_accepted_at`/`privacy_accepted_at` e as versões (`"2026-08-15"`, provisório — os documentos-base ainda não têm numeração formal) no servidor, nunca confiando em timestamps enviados pelo cliente.
+
+**5. Página `/cadastro`** — `app/cadastro/page.tsx` (Server Component): redireciona para `/login` se não autenticado; redireciona para `/dashboard` se o perfil já estiver completo (evita reexibir o formulário desnecessariamente); caso contrário, renderiza `<ProfileForm />` dentro do mesmo padrão visual (header/card) já usado no Dashboard.
+
+**6. Formulário** — `components/profile-form.tsx` (Client Component), reaproveitando os padrões visuais já estabelecidos em `components/dashboard-form.tsx` (classes de campo, padrão de "cartão-rádio" para seleção de tipo de atuação, `UF_OPTIONS` com as 27 unidades federativas para os selects de UF do CRECI e Estado). Nome, CRECI, UF, cidade e estado são obrigatórios (`required` no HTML + validação client-side desabilitando o botão); telefone é opcional e claramente rotulado como tal; um aviso curto deixa explícito que o CRECI é autodeclarado; os aceites de Termos e Privacidade são checkboxes obrigatórios com link para as páginas públicas; o consentimento de marketing é um checkbox **separado, desmarcado por padrão, dentro de um bloco visualmente distinto** dos aceites obrigatórios — nunca preenchido ou pré-selecionado.
+
+**7. Gates server-side** (item 4 da auditoria, decisão tomada: sim, proteger também as rotas de IA):
+- `app/dashboard/page.tsx`: após a checagem de sessão existente, chama `hasCompleteProfile`; sem perfil, redireciona para `/cadastro`.
+- `app/api/generate/route.ts` e `app/api/support/route.ts`: logo após a checagem de autenticação (401) e **antes** de consultar o Upstash, chamam o mesmo helper; sem perfil, retornam `403` com `{ error: "Complete seu cadastro antes de continuar." }` — status diferente do `401` (não autenticado), para o cliente conseguir distinguir os dois casos no futuro se precisar.
+- `app/api/assist/route.ts` **não foi alterado** — continua público, sem checagem de autenticação ou de perfil, conforme instrução explícita.
+- `app/auth/callback/route.ts`, `app/auth/confirm/route.ts`, `proxy.ts`, Google OAuth e Magic Link **não foram tocados**.
+
+**8. Usuários existentes**: nenhum script de migração/backfill foi criado. A própria ausência de linha em `profiles` já direciona qualquer conta (nova ou pré-existente) para `/cadastro` no próximo acesso — validado no código, não apenas na teoria da auditoria.
+
+### Documentos jurídicos atualizados
+
+Alterações factuais, sem inventar conteúdo novo:
+- **`docs/PRIVACY_POLICY.md`**: nova seção 3-F ("Dados de perfil do corretor (cadastro)") descrevendo os campos coletados, o caráter autodeclarado e não verificado do CRECI, a ausência de coleta de CPF, e o consentimento de marketing como opcional/separado; seção 4 (Finalidades) menciona a nova finalidade; seção 6 (Fornecedores) atualiza a descrição do Supabase para incluir o armazenamento do perfil com RLS; seção 8 (Retenção) e seção 9 (Direitos do titular) passam a mencionar os dados de perfil explicitamente.
+- **`docs/TERMS_OF_USE.md`**: seção 4 (Conta e acesso) passa a descrever a exigência de cadastro no primeiro acesso e reforça, de forma explícita, que o CRECI é autodeclarado e não verificado; seção 5 (Responsabilidades do usuário) passa a incluir a veracidade dos dados de cadastro.
+- **`app/privacidade/page.tsx`** e **`app/termos/page.tsx`**: as mesmas mudanças foram espelhadas manualmente nas páginas públicas correspondentes (esses arquivos não são gerados a partir dos `.md`; são mantidos em paralelo, seguindo o padrão já existente no projeto).
+- Nenhum novo `[A CONFIRMAR ANTES DO LANÇAMENTO]` foi resolvido nem inventado — os pontos já pendentes de revisão jurídica continuam marcados como estavam.
+
+### Testes realizados
+
+- `npm run lint`: **aprovado**, sem erros ou avisos novos.
+- `npm run build`: em execução no momento em que esta seção foi escrita — resultado registrado na entrega final desta tarefa.
+- Testes locais possíveis sem fabricar autenticação: fluxo de redirecionamento (`/dashboard`, `/cadastro` sem sessão → `/login`) e a estrutura das rotas seguem o mesmo padrão já validado nas tarefas anteriores desta sprint (logout, Magic Link) — um teste de ponta a ponta real do cadastro (criar conta Google nova → `/cadastro` → preencher → `/dashboard`) exige a migration aplicada no Supabase remoto, que **não foi feita nesta tarefa**, e por isso não pôde ser exercitado localmente de ponta a ponta.
+
+### Instruções para aplicar a migration (manual, aguardando aprovação)
+
+1. Abrir o painel do Supabase do projeto → **SQL Editor**.
+2. Colar o conteúdo integral de `supabase/migrations/20260815000000_create_profiles.sql`.
+3. Executar.
+4. Verificar, em **Table Editor**, que a tabela `profiles` foi criada com RLS habilitado (ícone de cadeado) e as três políticas (`profiles_select_own`, `profiles_insert_own`, `profiles_update_own`) listadas em **Authentication → Policies**.
+5. Recomendado: testar isolamento entre contas antes do deploy — logar com duas contas Google diferentes e confirmar, via SQL Editor com a chave anônima/RLS ativo (não com a service role), que uma conta não consegue ler nem alterar a linha da outra.
+
+Nenhuma dessas etapas foi executada por mim — nenhum acesso ao projeto Supabase remoto foi feito nesta tarefa.
+
+---
+
 ## Status
 
-Tarefa 1 concluída em 2026-08-10. Aguardando aprovação para a Tarefa 2.
+Tarefa 1 concluída em 2026-08-10. Implementação do Perfil do Corretor concluída em 2026-08-15 (migration criada, não aplicada; nenhum deploy realizado). Aguardando aprovação para aplicar a migration no Supabase remoto e para o deploy.
