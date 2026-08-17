@@ -709,8 +709,33 @@ Alterações factuais, sem inventar conteúdo novo:
 
 Nenhuma dessas etapas foi executada por mim — nenhum acesso ao projeto Supabase remoto foi feito nesta tarefa.
 
+*Nota (2026-08-17): a migration acima já foi aplicada manualmente pelo proprietário no Supabase de produção, e a tabela `profiles` foi confirmada no Table Editor. Ver também a remoção do Magic Link logo abaixo, que reduz o escopo de login desta fase a apenas Google OAuth.*
+
+---
+
+## Remoção do Magic Link da interface (2026-08-17)
+
+**Decisão de produto**: nesta fase, o login da SUZZY AI passa a ser **somente por Google OAuth**. O Magic Link foi retirado da tela de login — não por bug, mas por decisão consciente de não configurar SMTP customizado agora. Pode voltar no futuro, quando houver infraestrutura de e-mail apropriada (Custom SMTP configurado no Supabase).
+
+**O que saiu de `app/login/page.tsx`**:
+- o estado `email` e o `input` de e-mail;
+- o divisor visual "ou" entre os dois métodos de login;
+- o botão "Continuar com Magic Link";
+- a função `handleMagicLinkLogin` e a chamada a `supabase.auth.signInWithOtp`;
+- a mensagem de sucesso ("Verifique seu e-mail para acessar o link de acesso.").
+
+**O que foi preservado integralmente**: o botão "Continuar com Google", `handleGoogleLogin`, `signInWithOAuth` com o mesmo `redirectTo` (`.../auth/callback`), o estado `message` (agora só usado para erros do Google) e o estado `loading`, o texto "Novo por aqui? Sua conta é criada automaticamente no primeiro acesso." (mensagem genérica, não exclusiva do Magic Link), e todo o restante do layout.
+
+**`app/auth/confirm/route.ts` — removido.** Antes de remover, foi feita uma busca por todas as referências a `auth/confirm`, `verifyOtp`, `signInWithOtp` e `EmailOtpType` no projeto: a única referência em código (fora do próprio arquivo e da documentação) era o `emailRedirectTo` em `app/login/page.tsx`, que foi removido junto com o restante do fluxo de Magic Link. Sem nenhuma chamada a `signInWithOtp` em nenhum lugar da aplicação, nenhum e-mail de Magic Link é mais enviado, e a rota `/auth/confirm` nunca seria alcançada por ninguém — por isso foi considerada segura para remoção, em vez de deixada como código morto.
+
+**Não alterado**: `app/auth/callback/route.ts` (Google OAuth), `app/auth/logout/route.ts`, `lib/supabase/*`, `proxy.ts`, o fluxo `/cadastro` completo (`app/cadastro/page.tsx`, `components/profile-form.tsx`, `app/api/profile/route.ts`, `lib/supabase/profile.ts`), os gates de perfil em `app/dashboard/page.tsx`/`app/api/generate/route.ts`/`app/api/support/route.ts`, `app/api/assist/route.ts`, OpenAI, Upstash e rate limiting.
+
+**Testes**: `npm run lint` e `npm run build` executados após a remoção (resultado registrado na entrega desta tarefa). Como o Google OAuth exige uma sessão real do navegador, não foi possível clicar em "Continuar com Google" fim a fim neste ambiente — a verificação ficou restrita a: a função e a rota permanecem exatamente como estavam antes desta tarefa (nenhum diff nelas), e o build/lint confirmam que a página compila sem os trechos removidos.
+
+**Nenhum deploy foi realizado nesta tarefa** — aguardando aprovação.
+
 ---
 
 ## Status
 
-Tarefa 1 concluída em 2026-08-10. Implementação do Perfil do Corretor concluída em 2026-08-15 (migration criada, não aplicada; nenhum deploy realizado). Aguardando aprovação para aplicar a migration no Supabase remoto e para o deploy.
+Tarefa 1 concluída em 2026-08-10. Implementação do Perfil do Corretor concluída em 2026-08-15 (migration aplicada manualmente em produção em 2026-08-17, confirmada no Table Editor). Magic Link removido da interface em 2026-08-17 (Google OAuth é o único método de login nesta fase); `app/auth/confirm/route.ts` removido por não ter mais nenhuma chamada que o alcance. Aguardando aprovação para deploy.

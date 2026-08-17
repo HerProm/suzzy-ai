@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,24 +23,6 @@ export default function LoginPage() {
       setMessage(error.message);
       setLoading(false);
     }
-  }
-
-  async function handleMagicLinkLogin() {
-    setLoading(true);
-    setMessage(null);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/confirm`,
-      },
-    });
-
-    setLoading(false);
-    setMessage(
-      error ? error.message : "Verifique seu e-mail para acessar o link de acesso.",
-    );
   }
 
   return (
@@ -67,30 +48,6 @@ export default function LoginPage() {
             >
               Continuar com Google
             </button>
-
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs text-slate-400">ou</span>
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <input
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleMagicLinkLogin}
-                disabled={loading || !email}
-                className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Continuar com Magic Link
-              </button>
-            </div>
 
             <p className="text-center text-xs text-slate-400">
               Novo por aqui? Sua conta é criada automaticamente no primeiro
