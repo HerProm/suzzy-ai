@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Task } from "@/lib/ai/tasks";
 import { PROMPT_TEMPLATES } from "@/lib/prompt-templates";
 import { SCENARIOS_BY_CATEGORY } from "@/lib/real-estate-scenarios";
@@ -19,6 +19,26 @@ const TASKS: { id: Task; label: string }[] = [
   { id: "sugerir_proximos_passos", label: "Sugerir próximos passos" },
 ];
 
+type ShortcutItem =
+  | { kind: "task"; task: Task; label: string }
+  | { kind: "highlight"; target: "objection" | "negotiation"; label: string };
+
+// 4 dos 6 atalhos mapeiam 1:1 para as tarefas reais já aceitas por
+// /api/generate — só pré-selecionam o mesmo `selectedTask` que o antigo
+// fieldset "Tarefa" já controlava. Os outros 2 não têm tarefa própria no
+// backend: em vez de simular uma funcionalidade que não existe, eles abrem
+// e destacam as opções reais já existentes (Objeção / Cenário-Negociação).
+const SHORTCUTS: ShortcutItem[] = [
+  { kind: "task", task: "responder_lead", label: "Responder cliente" },
+  { kind: "highlight", target: "objection", label: "Contornar objeção" },
+  { kind: "task", task: "criar_follow_up", label: "Fazer follow-up" },
+  { kind: "highlight", target: "negotiation", label: "Negociar proposta" },
+  { kind: "task", task: "gerar_anuncio", label: "Criar anúncio" },
+  { kind: "task", task: "sugerir_proximos_passos", label: "O que faço agora?" },
+];
+
+const HIGHLIGHT_DURATION_MS = 2200;
+
 const NETWORK_ERROR_MESSAGE =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
 const HISTORY_PREVIEW_LENGTH = 80;
@@ -28,6 +48,7 @@ const FIELD_INPUT_CLASS =
   "w-full resize-y rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 const SECONDARY_BUTTON_CLASS =
   "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+const HIGHLIGHT_CLASS = "-m-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-300";
 
 function getTaskLabel(task: Task) {
   return TASKS.find((item) => item.id === task)?.label ?? task;
@@ -51,6 +72,14 @@ export function DashboardForm() {
   const [selectedObjectionId, setSelectedObjectionId] = useState<
     string | null
   >(null);
+
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [highlightedSection, setHighlightedSection] = useState<
+    "objection" | "negotiation" | null
+  >(null);
+
+  const objectionSectionRef = useRef<HTMLFieldSetElement>(null);
+  const negotiationGroupRef = useRef<HTMLFieldSetElement>(null);
 
   const { copyLabel, copyError, handleCopy, resetCopyFeedback } =
     useCopyResponse();
@@ -81,6 +110,38 @@ export function DashboardForm() {
         : selectedTask === null
           ? "Selecione uma tarefa para gerar uma resposta."
           : null;
+
+  // Rola até a seção real correspondente e agenda o fim do destaque visual.
+  // O ref só existe no DOM depois que "Opções avançadas" está aberto, mas
+  // como handleShortcutClick já abre o painel no mesmo evento que define
+  // highlightedSection, ambos chegam commitados juntos antes deste efeito
+  // rodar.
+  useEffect(() => {
+    if (!highlightedSection) return;
+
+    const ref =
+      highlightedSection === "objection"
+        ? objectionSectionRef
+        : negotiationGroupRef;
+
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    const timeout = setTimeout(
+      () => setHighlightedSection(null),
+      HIGHLIGHT_DURATION_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [highlightedSection]);
+
+  function handleShortcutClick(item: ShortcutItem) {
+    if (item.kind === "task") {
+      setSelectedTask(item.task);
+      return;
+    }
+
+    setIsAdvancedOpen(true);
+    setHighlightedSection(item.target);
+  }
 
   async function handleGenerate() {
     if (isLoading) return;
@@ -143,257 +204,320 @@ export function DashboardForm() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="template" className={FIELD_LABEL_CLASS}>
-          Template
-        </label>
-        <select
-          id="template"
-          value={selectedTemplateId}
-          onChange={(e) => handleTemplateChange(e.target.value)}
-          className={FIELD_INPUT_CLASS}
-        >
-          <option value="">Selecione um template</option>
-          {PROMPT_TEMPLATES.map((template) => (
-            <option key={template.id} value={template.id}>
-              {template.name}
-            </option>
-          ))}
-        </select>
-        {selectedTemplateDescription && (
-          <p className="text-xs text-slate-500">
-            {selectedTemplateDescription}
-          </p>
-        )}
-      </div>
+    <div className="grid gap-8 lg:grid-cols-[1fr_300px] lg:items-start">
+      <div className="flex flex-col gap-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <label htmlFor="context" className={FIELD_LABEL_CLASS}>
+            Converse com a Suzzy
+          </label>
+          <textarea
+            id="context"
+            value={context}
+            onChange={(e) => setContext(e.target.value)}
+            rows={5}
+            placeholder="Cole aqui a conversa, os dados do imóvel ou qualquer informação relevante..."
+            className={`mt-2 ${FIELD_INPUT_CLASS}`}
+          />
+        </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="context" className={FIELD_LABEL_CLASS}>
-          Contexto
-        </label>
-        <textarea
-          id="context"
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          rows={6}
-          placeholder="Cole aqui a conversa, os dados do imóvel ou qualquer informação relevante..."
-          className={FIELD_INPUT_CLASS}
-        />
-      </div>
+        <fieldset className="flex flex-col gap-2">
+          <legend className={FIELD_LABEL_CLASS}>O que você precisa agora?</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {SHORTCUTS.map((item) => {
+              const isActive = item.kind === "task" && selectedTask === item.task;
 
-      <fieldset className="flex flex-col gap-4">
-        <legend className={FIELD_LABEL_CLASS}>Cenário</legend>
-        {SCENARIOS_BY_CATEGORY.map((grupo) => (
-          <fieldset key={grupo.categoria} className="flex flex-col gap-2">
-            <legend className="text-xs font-medium text-slate-500">
-              {grupo.categoria}
-            </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {grupo.cenarios.map((cenario) => (
-                <label
-                  key={cenario.id}
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
-                    selectedScenarioId === cenario.id
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => handleShortcutClick(item)}
+                  className={`rounded-lg border px-3.5 py-2.5 text-left text-sm font-medium transition-colors ${
+                    isActive
                       ? "border-slate-900 bg-slate-50 text-slate-900"
                       : "border-slate-300 text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="scenario"
-                    value={cenario.id}
-                    checked={selectedScenarioId === cenario.id}
-                    onChange={() => setSelectedScenarioId(cenario.id)}
-                    className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                  />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="font-medium">{cenario.nome}</span>
-                    <span className="text-xs text-slate-500">
-                      {cenario.descricao}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ))}
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-4">
-        <legend className={FIELD_LABEL_CLASS}>Objeção</legend>
-        {OBJECTIONS_BY_CATEGORY.map((grupo) => (
-          <fieldset key={grupo.categoria} className="flex flex-col gap-2">
-            <legend className="text-xs font-medium text-slate-500">
-              {grupo.categoria}
-            </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {grupo.objecoes.map((objecao) => (
-                <label
-                  key={objecao.id}
-                  className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
-                    selectedObjectionId === objecao.id
-                      ? "border-slate-900 bg-slate-50 text-slate-900"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="objection"
-                    value={objecao.id}
-                    checked={selectedObjectionId === objecao.id}
-                    onChange={() => setSelectedObjectionId(objecao.id)}
-                    className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                  />
-                  <span className="flex flex-col gap-0.5">
-                    <span className="font-medium">{objecao.nome}</span>
-                    <span className="text-xs text-slate-500">
-                      {objecao.descricao}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        ))}
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-2">
-        <legend className={FIELD_LABEL_CLASS}>Tarefa</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {TASKS.map(({ id, label }) => (
-            <label
-              key={id}
-              className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
-                selectedTask === id
-                  ? "border-slate-900 bg-slate-50 text-slate-900"
-                  : "border-slate-300 text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="task"
-                value={id}
-                checked={selectedTask === id}
-                onChange={() => setSelectedTask(id)}
-                className="h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            disabled={isDisabled || isLoading}
-            onClick={handleGenerate}
-            aria-busy={isLoading}
-            className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? "Gerando..." : "Gerar resposta"}
-          </button>
-
-          <button
-            type="button"
-            disabled={isLoading}
-            onClick={handleClear}
-            className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Limpar
-          </button>
-
-          {generateHint && !isLoading && (
-            <span className="text-xs text-slate-400">{generateHint}</span>
-          )}
-        </div>
-
-        <div aria-live="polite" className="flex flex-col gap-4">
-          {response !== null && (
-            <div className="animate-fade-in flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="response" className={FIELD_LABEL_CLASS}>
-                  Resposta gerada
-                </label>
-                <textarea
-                  id="response"
-                  value={response}
-                  onChange={(e) => setResponse(e.target.value)}
-                  rows={6}
-                  className={FIELD_INPUT_CLASS}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  disabled={isCopyDisabled}
-                  onClick={() => handleCopy(response ?? "")}
-                  className={SECONDARY_BUTTON_CLASS}
-                >
-                  {copyLabel}
+                  {item.label}
                 </button>
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={handleGenerate}
-                  aria-busy={isLoading}
-                  className={SECONDARY_BUTTON_CLASS}
-                >
-                  {isLoading ? "Gerando..." : "Gerar novamente"}
-                </button>
-              </div>
-
-              {copyError && <p className="text-sm text-red-600">{copyError}</p>}
-            </div>
-          )}
-          {error && (
-            <p className="animate-fade-in rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {history.length > 0 && (
-        <div className="flex flex-col gap-3 border-t border-slate-200 pt-6">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className={FIELD_LABEL_CLASS}>Histórico recente</h2>
-            <span className="text-xs text-slate-400">
-              {history.length} {history.length === 1 ? "item" : "itens"}
-            </span>
+              );
+            })}
           </div>
-          <ul className="flex max-h-80 flex-col divide-y divide-slate-200 overflow-y-auto rounded-lg border border-slate-200 bg-white">
-            {history.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => handleRestore(item)}
-                  aria-label={`Restaurar geração de ${getTaskLabel(item.task)}`}
-                  className="flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-900">
-                      {getTaskLabel(item.task)}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {item.createdAt.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    {previewText(item.context)}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {previewText(item.response)}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ul>
+        </fieldset>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={isDisabled || isLoading}
+              onClick={handleGenerate}
+              aria-busy={isLoading}
+              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? "Gerando..." : "Gerar resposta"}
+            </button>
+
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={handleClear}
+              className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpar
+            </button>
+
+            {generateHint && !isLoading && (
+              <span className="text-xs text-slate-400">{generateHint}</span>
+            )}
+          </div>
+
+          <div aria-live="polite" className="flex flex-col gap-4">
+            {response !== null && (
+              <div className="animate-fade-in flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="response" className={FIELD_LABEL_CLASS}>
+                    Resposta gerada
+                  </label>
+                  <textarea
+                    id="response"
+                    value={response}
+                    onChange={(e) => setResponse(e.target.value)}
+                    rows={6}
+                    className={FIELD_INPUT_CLASS}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={isCopyDisabled}
+                    onClick={() => handleCopy(response ?? "")}
+                    className={SECONDARY_BUTTON_CLASS}
+                  >
+                    {copyLabel}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={handleGenerate}
+                    aria-busy={isLoading}
+                    className={SECONDARY_BUTTON_CLASS}
+                  >
+                    {isLoading ? "Gerando..." : "Gerar novamente"}
+                  </button>
+                </div>
+
+                {copyError && <p className="text-sm text-red-600">{copyError}</p>}
+              </div>
+            )}
+            {error && (
+              <p className="animate-fade-in rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+          </div>
         </div>
-      )}
+
+        <div className="border-t border-slate-200 pt-4">
+          <button
+            type="button"
+            onClick={() => setIsAdvancedOpen((open) => !open)}
+            aria-expanded={isAdvancedOpen}
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+          >
+            <span>
+              {isAdvancedOpen ? "Ocultar opções avançadas" : "Opções avançadas"}
+            </span>
+            <span
+              aria-hidden="true"
+              className={`transition-transform ${isAdvancedOpen ? "rotate-180" : ""}`}
+            >
+              ⌄
+            </span>
+          </button>
+
+          {isAdvancedOpen && (
+            <div className="mt-6 flex flex-col gap-8">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="template" className={FIELD_LABEL_CLASS}>
+                  Template
+                </label>
+                <select
+                  id="template"
+                  value={selectedTemplateId}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className={FIELD_INPUT_CLASS}
+                >
+                  <option value="">Selecione um template</option>
+                  {PROMPT_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedTemplateDescription && (
+                  <p className="text-xs text-slate-500">
+                    {selectedTemplateDescription}
+                  </p>
+                )}
+              </div>
+
+              <fieldset className="flex flex-col gap-4">
+                <legend className={FIELD_LABEL_CLASS}>Cenário</legend>
+                {SCENARIOS_BY_CATEGORY.map((grupo) => (
+                  <fieldset
+                    key={grupo.categoria}
+                    ref={
+                      grupo.categoria === "Negociação"
+                        ? negotiationGroupRef
+                        : undefined
+                    }
+                    className={`flex flex-col gap-2 transition-colors duration-700 ${
+                      highlightedSection === "negotiation" &&
+                      grupo.categoria === "Negociação"
+                        ? HIGHLIGHT_CLASS
+                        : ""
+                    }`}
+                  >
+                    <legend className="text-xs font-medium text-slate-500">
+                      {grupo.categoria}
+                    </legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {grupo.cenarios.map((cenario) => (
+                        <label
+                          key={cenario.id}
+                          className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
+                            selectedScenarioId === cenario.id
+                              ? "border-slate-900 bg-slate-50 text-slate-900"
+                              : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="scenario"
+                            value={cenario.id}
+                            checked={selectedScenarioId === cenario.id}
+                            onChange={() => setSelectedScenarioId(cenario.id)}
+                            className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                          />
+                          <span className="flex flex-col gap-0.5">
+                            <span className="font-medium">{cenario.nome}</span>
+                            <span className="text-xs text-slate-500">
+                              {cenario.descricao}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </fieldset>
+
+              <fieldset
+                ref={objectionSectionRef}
+                className={`flex flex-col gap-4 transition-colors duration-700 ${
+                  highlightedSection === "objection" ? HIGHLIGHT_CLASS : ""
+                }`}
+              >
+                <legend className={FIELD_LABEL_CLASS}>Objeção</legend>
+                {OBJECTIONS_BY_CATEGORY.map((grupo) => (
+                  <fieldset key={grupo.categoria} className="flex flex-col gap-2">
+                    <legend className="text-xs font-medium text-slate-500">
+                      {grupo.categoria}
+                    </legend>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {grupo.objecoes.map((objecao) => (
+                        <label
+                          key={objecao.id}
+                          className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm transition-colors ${
+                            selectedObjectionId === objecao.id
+                              ? "border-slate-900 bg-slate-50 text-slate-900"
+                              : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="objection"
+                            value={objecao.id}
+                            checked={selectedObjectionId === objecao.id}
+                            onChange={() => setSelectedObjectionId(objecao.id)}
+                            className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                          />
+                          <span className="flex flex-col gap-0.5">
+                            <span className="font-medium">{objecao.nome}</span>
+                            <span className="text-xs text-slate-500">
+                              {objecao.descricao}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </fieldset>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h2 className={FIELD_LABEL_CLASS}>Hoje</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Nenhuma atividade registrada hoje ainda.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className={FIELD_LABEL_CLASS}>Conversas recentes</h2>
+            {history.length > 0 && (
+              <span className="text-xs text-slate-400">
+                {history.length} {history.length === 1 ? "item" : "itens"}
+              </span>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">
+              Suas gerações vão aparecer aqui.
+            </p>
+          ) : (
+            <ul className="mt-3 flex max-h-72 flex-col divide-y divide-slate-200 overflow-y-auto rounded-lg border border-slate-200">
+              {history.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleRestore(item)}
+                    aria-label={`Restaurar geração de ${getTaskLabel(item.task)}`}
+                    className="flex w-full flex-col gap-1 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-900">
+                        {getTaskLabel(item.task)}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {item.createdAt.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      {previewText(item.response)}
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h2 className={FIELD_LABEL_CLASS}>Dica da Suzzy</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Quanto mais detalhes você incluir no contexto — a conversa
+            completa e as características do imóvel — mais precisa fica a
+            resposta gerada.
+          </p>
+        </div>
+      </aside>
     </div>
   );
 }
