@@ -49,6 +49,14 @@ const FIELD_INPUT_CLASS =
 const SECONDARY_BUTTON_CLASS =
   "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 const HIGHLIGHT_CLASS = "-m-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-300";
+const BUBBLE_CLASS =
+  "rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-4 shadow-sm sm:p-5";
+const CHIP_CLASS =
+  "rounded-full border px-3.5 py-2 text-left text-sm font-medium transition-colors";
+
+type DashboardFormProps = {
+  firstName?: string;
+};
 
 function getTaskLabel(task: Task) {
   return TASKS.find((item) => item.id === task)?.label ?? task;
@@ -60,7 +68,11 @@ function previewText(text: string) {
     : text;
 }
 
-export function DashboardForm() {
+export function DashboardForm({ firstName }: DashboardFormProps) {
+  const greeting = firstName
+    ? `Oi, ${firstName}! O que você precisa resolver hoje?`
+    : "Oi! O que você precisa resolver hoje?";
+
   const [context, setContext] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -205,24 +217,12 @@ export function DashboardForm() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_300px] lg:items-start">
-      <div className="flex flex-col gap-8">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <label htmlFor="context" className={FIELD_LABEL_CLASS}>
-            Converse com a Suzzy
-          </label>
-          <textarea
-            id="context"
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            rows={5}
-            placeholder="Cole aqui a conversa, os dados do imóvel ou qualquer informação relevante..."
-            className={`mt-2 ${FIELD_INPUT_CLASS}`}
-          />
-        </div>
+      <div className="flex flex-col gap-6">
+        <div className={BUBBLE_CLASS}>
+          <p className="text-xs font-medium text-slate-400">Suzzy</p>
+          <p className="mt-1 text-sm text-slate-900">{greeting}</p>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className={FIELD_LABEL_CLASS}>O que você precisa agora?</legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4 flex flex-wrap gap-2">
             {SHORTCUTS.map((item) => {
               const isActive = item.kind === "task" && selectedTask === item.task;
 
@@ -231,7 +231,7 @@ export function DashboardForm() {
                   key={item.label}
                   type="button"
                   onClick={() => handleShortcutClick(item)}
-                  className={`rounded-lg border px-3.5 py-2.5 text-left text-sm font-medium transition-colors ${
+                  className={`${CHIP_CLASS} ${
                     isActive
                       ? "border-slate-900 bg-slate-50 text-slate-900"
                       : "border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -242,10 +242,67 @@ export function DashboardForm() {
               );
             })}
           </div>
-        </fieldset>
+        </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+        <div aria-live="polite" className="flex flex-col gap-4">
+          {response !== null && (
+            <div className={`animate-fade-in ${BUBBLE_CLASS}`}>
+              <p className="text-xs font-medium text-slate-400">Suzzy</p>
+              <label htmlFor="response" className="sr-only">
+                Resposta da Suzzy
+              </label>
+              <textarea
+                id="response"
+                value={response}
+                onChange={(e) => setResponse(e.target.value)}
+                rows={6}
+                className={`mt-1 ${FIELD_INPUT_CLASS}`}
+              />
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  disabled={isCopyDisabled}
+                  onClick={() => handleCopy(response ?? "")}
+                  className={SECONDARY_BUTTON_CLASS}
+                >
+                  {copyLabel}
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleGenerate}
+                  aria-busy={isLoading}
+                  className={SECONDARY_BUTTON_CLASS}
+                >
+                  {isLoading ? "Enviando..." : "Tentar novamente"}
+                </button>
+              </div>
+
+              {copyError && <p className="mt-2 text-sm text-red-600">{copyError}</p>}
+            </div>
+          )}
+          {error && (
+            <p className="animate-fade-in rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <label htmlFor="context" className="sr-only">
+            Sua mensagem para a Suzzy
+          </label>
+          <textarea
+            id="context"
+            value={context}
+            onChange={(e) => setContext(e.target.value)}
+            rows={4}
+            placeholder="Cole aqui a conversa, os dados do imóvel ou qualquer informação relevante..."
+            className={FIELD_INPUT_CLASS}
+          />
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               type="button"
               disabled={isDisabled || isLoading}
@@ -253,7 +310,7 @@ export function DashboardForm() {
               aria-busy={isLoading}
               className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isLoading ? "Gerando..." : "Gerar resposta"}
+              {isLoading ? "Enviando..." : "Enviar"}
             </button>
 
             <button
@@ -262,57 +319,11 @@ export function DashboardForm() {
               onClick={handleClear}
               className="inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Limpar
+              Nova conversa
             </button>
 
             {generateHint && !isLoading && (
               <span className="text-xs text-slate-400">{generateHint}</span>
-            )}
-          </div>
-
-          <div aria-live="polite" className="flex flex-col gap-4">
-            {response !== null && (
-              <div className="animate-fade-in flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="response" className={FIELD_LABEL_CLASS}>
-                    Resposta gerada
-                  </label>
-                  <textarea
-                    id="response"
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                    rows={6}
-                    className={FIELD_INPUT_CLASS}
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    disabled={isCopyDisabled}
-                    onClick={() => handleCopy(response ?? "")}
-                    className={SECONDARY_BUTTON_CLASS}
-                  >
-                    {copyLabel}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isLoading}
-                    onClick={handleGenerate}
-                    aria-busy={isLoading}
-                    className={SECONDARY_BUTTON_CLASS}
-                  >
-                    {isLoading ? "Gerando..." : "Gerar novamente"}
-                  </button>
-                </div>
-
-                {copyError && <p className="text-sm text-red-600">{copyError}</p>}
-              </div>
-            )}
-            {error && (
-              <p className="animate-fade-in rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
-                {error}
-              </p>
             )}
           </div>
         </div>

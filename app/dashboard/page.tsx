@@ -30,16 +30,17 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   const firstName = profileRow?.full_name?.trim().split(" ")[0];
-  const greeting = firstName
-    ? `Olá, ${firstName}. Como posso te ajudar hoje?`
-    : "Olá! Como posso te ajudar hoje?";
 
   return (
     <div className="flex min-h-full flex-1">
       <aside className="hidden w-56 flex-col justify-between border-r border-slate-200 bg-white px-5 py-6 sm:flex">
-        <span className="text-lg font-semibold tracking-tight text-slate-900">
-          SUZZY AI
-        </span>
+        {/* Espaço reservado para a logomarca oficial da Suzzy quando
+            estiver disponível — por enquanto, só o texto da marca. */}
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-semibold tracking-tight text-slate-900">
+            SUZZY AI
+          </span>
+        </div>
         <form action="/auth/logout" method="POST">
           <button type="submit" className={LOGOUT_BUTTON_CLASS}>
             Sair
@@ -61,13 +62,7 @@ export default async function DashboardPage() {
 
         <main className="flex flex-1 justify-center px-6 py-10 sm:py-12">
           <div className="w-full max-w-5xl">
-            <div className="mb-6 sm:mb-8">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-                {greeting}
-              </h1>
-            </div>
-
-            <DashboardForm />
+            <DashboardForm firstName={firstName} />
           </div>
         </main>
       </div>
