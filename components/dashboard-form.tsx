@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import type { Task } from "@/lib/ai/tasks";
 import { PROMPT_TEMPLATES } from "@/lib/prompt-templates";
 import { SCENARIOS_BY_CATEGORY } from "@/lib/real-estate-scenarios";
@@ -38,6 +39,8 @@ const SHORTCUTS: ShortcutItem[] = [
 ];
 
 const HIGHLIGHT_DURATION_MS = 2200;
+const CONTEXT_MIN_HEIGHT_PX = 68;
+const CONTEXT_MAX_HEIGHT_PX = 240;
 
 const NETWORK_ERROR_MESSAGE =
   "Não foi possível gerar a resposta no momento. Tente novamente.";
@@ -46,6 +49,11 @@ const HISTORY_PREVIEW_LENGTH = 80;
 const FIELD_LABEL_CLASS = "text-sm font-medium text-slate-700";
 const FIELD_INPUT_CLASS =
   "w-full resize-y rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+// Campo de conversa: mesma aparência base do FIELD_INPUT_CLASS, mas sem a
+// alça de redimensionar manual (o crescimento é automático via JS) e com
+// altura máxima antes de rolar internamente.
+const CONTEXT_INPUT_CLASS =
+  "w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 const SECONDARY_BUTTON_CLASS =
   "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 const HIGHLIGHT_CLASS = "-m-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-300";
@@ -53,6 +61,9 @@ const BUBBLE_CLASS =
   "rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-4 shadow-sm sm:p-5";
 const CHIP_CLASS =
   "rounded-full border px-3.5 py-2 text-left text-sm font-medium transition-colors";
+const CHIP_ACTIVE_CLASS = "border-teal-700 bg-teal-50 text-teal-800";
+const CHIP_INACTIVE_CLASS =
+  "border-slate-300 text-slate-700 hover:border-teal-200 hover:bg-teal-50/60";
 
 type DashboardFormProps = {
   firstName?: string;
@@ -92,6 +103,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
 
   const objectionSectionRef = useRef<HTMLFieldSetElement>(null);
   const negotiationGroupRef = useRef<HTMLFieldSetElement>(null);
+  const contextTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { copyLabel, copyError, handleCopy, resetCopyFeedback } =
     useCopyResponse();
@@ -144,6 +156,18 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
     );
     return () => clearTimeout(timeout);
   }, [highlightedSection]);
+
+  // Crescimento automático do campo de conversa: só ajusta a altura do
+  // próprio elemento DOM (não é estado novo, `context` continua a única
+  // fonte da verdade). Roda tanto na digitação quanto em mudanças
+  // programáticas de `context` (template, restaurar histórico, limpar).
+  useEffect(() => {
+    const el = contextTextareaRef.current;
+    if (!el) return;
+
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, CONTEXT_MAX_HEIGHT_PX)}px`;
+  }, [context]);
 
   function handleShortcutClick(item: ShortcutItem) {
     if (item.kind === "task") {
@@ -219,8 +243,14 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
     <div className="grid gap-8 lg:grid-cols-[1fr_300px] lg:items-start">
       <div className="flex flex-col gap-6">
         <div className={BUBBLE_CLASS}>
-          <p className="text-xs font-medium text-slate-400">Suzzy</p>
-          <p className="mt-1 text-sm text-slate-900">{greeting}</p>
+          <Image
+            src="/logo-suzzy.png"
+            alt="Suzzy AI"
+            width={1408}
+            height={768}
+            className="h-auto w-full max-w-[150px]"
+          />
+          <p className="mt-3 text-sm text-slate-900">{greeting}</p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {SHORTCUTS.map((item) => {
@@ -232,9 +262,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
                   type="button"
                   onClick={() => handleShortcutClick(item)}
                   className={`${CHIP_CLASS} ${
-                    isActive
-                      ? "border-slate-900 bg-slate-50 text-slate-900"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                    isActive ? CHIP_ACTIVE_CLASS : CHIP_INACTIVE_CLASS
                   }`}
                 >
                   {item.label}
@@ -295,11 +323,13 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
           </label>
           <textarea
             id="context"
+            ref={contextTextareaRef}
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            rows={4}
+            rows={2}
             placeholder="Cole aqui a conversa, os dados do imóvel ou qualquer informação relevante..."
-            className={FIELD_INPUT_CLASS}
+            style={{ minHeight: CONTEXT_MIN_HEIGHT_PX, maxHeight: CONTEXT_MAX_HEIGHT_PX }}
+            className={CONTEXT_INPUT_CLASS}
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-3">

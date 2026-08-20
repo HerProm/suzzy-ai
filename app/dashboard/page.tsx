@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasCompleteProfile } from "@/lib/supabase/profile";
@@ -33,14 +34,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex min-h-full flex-1">
-      <aside className="hidden w-56 flex-col justify-between border-r border-slate-200 bg-white px-5 py-6 sm:flex">
-        {/* Espaço reservado para a logomarca oficial da Suzzy quando
-            estiver disponível — por enquanto, só o texto da marca. */}
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold tracking-tight text-slate-900">
-            SUZZY AI
-          </span>
-        </div>
+      <aside className="hidden w-64 flex-col justify-between border-r border-slate-200 bg-white px-5 py-6 sm:flex">
+        <Image
+          src="/logo-suzzy.png"
+          alt="Suzzy AI"
+          width={1408}
+          height={768}
+          priority
+          className="h-auto w-full max-w-[190px]"
+        />
         <form action="/auth/logout" method="POST">
           <button type="submit" className={LOGOUT_BUTTON_CLASS}>
             Sair
@@ -50,9 +52,14 @@ export default async function DashboardPage() {
 
       <div className="flex flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 sm:hidden">
-          <span className="text-lg font-semibold tracking-tight text-slate-900">
-            SUZZY AI
-          </span>
+          <Image
+            src="/logo-suzzy.png"
+            alt="Suzzy AI"
+            width={1408}
+            height={768}
+            priority
+            className="h-9 w-auto"
+          />
           <form action="/auth/logout" method="POST">
             <button type="submit" className={LOGOUT_BUTTON_CLASS}>
               Sair
