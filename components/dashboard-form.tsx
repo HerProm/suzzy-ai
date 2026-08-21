@@ -65,6 +65,25 @@ const CHIP_ACTIVE_CLASS = "border-teal-700 bg-teal-50 text-teal-800";
 const CHIP_INACTIVE_CLASS =
   "border-slate-300 text-slate-700 hover:border-teal-200 hover:bg-teal-50/60";
 
+// Cenário, Objeção e Template são refinamento/contexto, não uma segunda
+// exigência: se o corretor já deixou clara a intenção por um deles, o
+// Enviar não deve continuar preso pedindo uma tarefa. Mapeiam só para as 4
+// tarefas já aceitas por /api/generate (lib/ai/tasks.ts) — nenhuma tarefa
+// nova é criada. Objeções não têm entrada própria porque todas envolvem
+// responder ao cliente, então caem direto no padrão.
+const DEFAULT_INFERRED_TASK: Task = "responder_lead";
+
+const SCENARIO_TASK_HINTS: Partial<Record<string, Task>> = {
+  "follow-up": "criar_follow_up",
+  "cliente-sem-resposta": "criar_follow_up",
+  "criar-anuncio": "gerar_anuncio",
+};
+
+const TEMPLATE_TASK_HINTS: Partial<Record<string, Task>> = {
+  "follow-up": "criar_follow_up",
+  "anuncio-imovel": "gerar_anuncio",
+};
+
 type DashboardFormProps = {
   firstName?: string;
 };
@@ -120,20 +139,18 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
     },
   );
 
-  const isDisabled = context.trim() === "" || selectedTask === null;
+  // Cenário/Objeção/Template/atalhos continuam podendo definir a tarefa
+  // (inferTaskIfNeeded), mas não são mais obrigatórios: escrever o contexto
+  // e clicar em Enviar já basta — handleGenerate resolve um padrão coerente
+  // se nada mais tiver sido escolhido.
+  const isDisabled = context.trim() === "";
   const isCopyDisabled = !response || response.trim() === "";
   const selectedTemplateDescription = PROMPT_TEMPLATES.find(
     (template) => template.id === selectedTemplateId,
   )?.description;
 
   const generateHint =
-    context.trim() === "" && selectedTask === null
-      ? "Informe o contexto e selecione uma tarefa para gerar uma resposta."
-      : context.trim() === ""
-        ? "Informe o contexto para gerar uma resposta."
-        : selectedTask === null
-          ? "Selecione uma tarefa para gerar uma resposta."
-          : null;
+    context.trim() === "" ? "Informe o contexto para gerar uma resposta." : null;
 
   // Rola até a seção real correspondente e agenda o fim do destaque visual.
   // O ref só existe no DOM depois que "Opções avançadas" está aberto, mas
@@ -179,8 +196,43 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
     setHighlightedSection(item.target);
   }
 
+  // Só preenche `selectedTask` se ainda estiver vazio — nunca sobrescreve
+  // uma tarefa que o corretor já escolheu explicitamente por um atalho.
+  function inferTaskIfNeeded(task: Task) {
+    setSelectedTask((current) => current ?? task);
+  }
+
+  function handleTemplateSelect(templateId: string) {
+    handleTemplateChange(templateId);
+
+    if (templateId) {
+      inferTaskIfNeeded(TEMPLATE_TASK_HINTS[templateId] ?? DEFAULT_INFERRED_TASK);
+    }
+  }
+
+  function handleScenarioSelect(scenarioId: string) {
+    setSelectedScenarioId(scenarioId);
+    inferTaskIfNeeded(SCENARIO_TASK_HINTS[scenarioId] ?? DEFAULT_INFERRED_TASK);
+  }
+
+  function handleObjectionSelect(objectionId: string) {
+    setSelectedObjectionId(objectionId);
+    inferTaskIfNeeded(DEFAULT_INFERRED_TASK);
+  }
+
   async function handleGenerate() {
     if (isLoading) return;
+
+    // Se o corretor não escolheu nenhuma tarefa por atalho, Cenário,
+    // Objeção ou Template, cai no padrão "Responder um lead" — a tarefa
+    // mais genérica das 4 já existentes, adequada para uma mensagem livre
+    // sem mais contexto. Reflete no estado (sem sobrescrever uma escolha
+    // já feita) para o chip correspondente acender e para o histórico
+    // registrar a tarefa realmente usada.
+    const taskToSend = selectedTask ?? DEFAULT_INFERRED_TASK;
+    if (!selectedTask) {
+      setSelectedTask(taskToSend);
+    }
 
     setIsLoading(true);
     setResponse(null);
@@ -192,7 +244,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           context,
-          task: selectedTask,
+          task: taskToSend,
           scenarioId: selectedScenarioId,
           objectionId: selectedObjectionId,
         }),
@@ -203,13 +255,11 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
       if (res.ok) {
         setResponse(data.response);
 
-        if (selectedTask) {
-          addHistoryItem({
-            context,
-            task: selectedTask,
-            response: data.response,
-          });
-        }
+        addHistoryItem({
+          context,
+          task: taskToSend,
+          response: data.response,
+        });
       } else {
         setError(data.error ?? NETWORK_ERROR_MESSAGE);
       }
@@ -227,6 +277,8 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
 
     setContext("");
     setSelectedTask(null);
+    setSelectedScenarioId(null);
+    setSelectedObjectionId(null);
     setResponse(null);
     setError(null);
     clearSelectedTemplate();
@@ -385,7 +437,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
                 <select
                   id="template"
                   value={selectedTemplateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  onChange={(e) => handleTemplateSelect(e.target.value)}
                   className={FIELD_INPUT_CLASS}
                 >
                   <option value="">Selecione um template</option>
@@ -437,7 +489,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
                             name="scenario"
                             value={cenario.id}
                             checked={selectedScenarioId === cenario.id}
-                            onChange={() => setSelectedScenarioId(cenario.id)}
+                            onChange={() => handleScenarioSelect(cenario.id)}
                             className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                           />
                           <span className="flex flex-col gap-0.5">
@@ -480,7 +532,7 @@ export function DashboardForm({ firstName }: DashboardFormProps) {
                             name="objection"
                             value={objecao.id}
                             checked={selectedObjectionId === objecao.id}
-                            onChange={() => setSelectedObjectionId(objecao.id)}
+                            onChange={() => handleObjectionSelect(objecao.id)}
                             className="mt-0.5 h-4 w-4 accent-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                           />
                           <span className="flex flex-col gap-0.5">
