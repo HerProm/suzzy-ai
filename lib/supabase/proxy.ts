@@ -47,7 +47,20 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: getClaims() renova o token de sessão nos cookies. Removê-lo
   // pode causar logout aleatório de usuários em SSR.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  // Instrumentação temporária para diagnosticar o login Google em produção
+  // (remover após confirmar a causa raiz), restrita às rotas relevantes
+  // para não gerar ruído em toda navegação. Só um booleano — nunca cookie
+  // ou dado do usuário.
+  const pathname = request.nextUrl.pathname;
+  if (pathname === "/dashboard" || pathname === "/auth/callback") {
+    console.log(
+      "[auth-debug] proxy_claims_check",
+      `pathname=${pathname}`,
+      `claims_present=${Boolean(data?.claims)}`,
+    );
+  }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:

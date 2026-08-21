@@ -12,14 +12,28 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
 
+  // Instrumentação temporária para diagnosticar o login Google em produção
+  // (remover após confirmar a causa raiz). Só booleanos/status — nunca
+  // cookie, claim bruta ou dado do usuário.
+  console.log(
+    "[auth-debug] dashboard_claims_check",
+    `claims_present=${Boolean(data?.claims)}`,
+  );
+
   if (!data?.claims) {
+    console.log("[auth-debug] dashboard_decision", "target=/login");
     redirect("/login");
   }
 
   const complete = await hasCompleteProfile(supabase, data.claims.sub);
+  console.log("[auth-debug] dashboard_profile_check", `profile_complete=${complete}`);
+
   if (!complete) {
+    console.log("[auth-debug] dashboard_decision", "target=/cadastro");
     redirect("/cadastro");
   }
+
+  console.log("[auth-debug] dashboard_decision", "target=render");
 
   // Nome usado só na saudação (cosmético) — não é um novo gate de acesso, o
   // gate real já é o hasCompleteProfile acima. Se a consulta falhar por
