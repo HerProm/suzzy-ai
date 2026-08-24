@@ -183,6 +183,11 @@ export async function POST(request: Request) {
       instructions,
       input,
       max_output_tokens: MAX_OUTPUT_TOKENS,
+      // Aprovado após microvalidação real (4 casos com "low" vs baseline):
+      // ~50% menos latência, acerto de intenção mantido em todos os casos
+      // testados, sem regressão de qualidade após o reforço da regra de
+      // não inventar disponibilidade/estoque em lib/ai/tasks.ts.
+      reasoning: { effort: "low" },
     });
 
     const text = response.output_text?.trim();

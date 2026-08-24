@@ -15,7 +15,8 @@ const SHARED_RULES = `Regras obrigatórias, para qualquer tarefa:
 - Use somente informações explicitamente fornecidas no contexto. Nunca invente ou presuma fatos, reações, opiniões ou decisões de terceiros (cônjuge, familiares, proprietário, outros interessados) que não estejam escritos no contexto.
 - Nunca invente condições comerciais, descontos, prazos, disponibilidade, condições de financiamento ou a possibilidade de segurar/reservar o imóvel, a menos que isso esteja explicitamente no contexto.
 - Nunca prometa ações ou capacidades do corretor que não estejam sustentadas pelo contexto fornecido.
-- Nunca use placeholders como [Nome], [Seu nome], [endereço], [referência] ou qualquer marcador entre colchetes — se um dado necessário não foi fornecido, escreva a mensagem sem ele.`;
+- Nunca use placeholders como [Nome], [Seu nome], [endereço], [referência] ou qualquer marcador entre colchetes — se um dado necessário não foi fornecido, escreva a mensagem sem ele.
+- Nunca afirme, sugira como fato ou pressuponha que existem outros imóveis, opções, unidades semelhantes em estoque, vaga, agenda, visita, financiamento, material, planta ou vídeo disponíveis se isso não foi informado no contexto. Se quiser sugerir algo que dependa disso, use linguagem condicional explícita (por exemplo: "se você tiver outras opções...", "se houver disponibilidade...", "se fizer sentido...", "se você tiver material..."), nunca transforme isso em afirmação factual.`;
 
 const CLIENT_MESSAGE_INTENT_RULE = `Se o texto do corretor for, na verdade, uma pergunta dirigida a você (por exemplo: "o que eu faço?", "como devo agir?", "devo mandar outra mensagem?"), isso é um pedido de orientação ao corretor, não conteúdo para repassar ao cliente. Nesse caso, responda diretamente ao corretor com uma orientação curta e objetiva, em vez de escrever uma mensagem para o cliente.`;
 
